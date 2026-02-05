@@ -1,6 +1,7 @@
 package by.baykulbackend.database.dao.user;
 
 import by.baykulbackend.database.dao.balance.Balance;
+import by.baykulbackend.database.dao.cart.Cart;
 import by.baykulbackend.database.model.Role;
 import by.baykulbackend.database.dto.security.Views;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
@@ -8,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -59,7 +61,7 @@ public class User {
     @Schema(
             description = "Unique username for authentication",
             requiredMode = Schema.RequiredMode.REQUIRED,
-            minLength = 1,
+            minLength = 3,
             maxLength = 50,
             example = "john"
     )
@@ -78,29 +80,38 @@ public class User {
 
     @Schema(
             description = "User's email address",
-            maxLength = 100,
+            maxLength = 255,
             format = "email",
             nullable = true,
             example = "example@email.com"
     )
-    @Column(name = "email", unique = true, length = 100)
+    @Email
+    @Column(name = "email", unique = true)
     @JsonView({Views.UserView.Get.class, Views.UserView.Post.class, Views.UserView.Put.class})
     private String email;
 
     @Schema(
             description = "User's phone number",
-            maxLength = 20,
+            maxLength = 15,
+            minLength = 7,
             format = "phone number",
             nullable = true,
             example = "+375296435434"
     )
-    @Column(name = "phone_number", length = 20)
+    @Column(name = "phone_number", length = 15)
     @JsonView({Views.UserView.Get.class, Views.UserView.Post.class, Views.UserView.Put.class})
     private String phoneNumber;
 
     @Schema(
-            description = "User's role in the system",
-            allowableValues = {"USER", "MANAGER", "ADMIN"},
+            description = """
+                          User role in the system. Defines permissions and access levels.
+                        
+                          **Available roles:**
+                        
+                          - **USER** - Standard user with permissions: users:read, balances:read, products:read, carts:read
+                          - **MANAGER** - Manager with permissions: users:read, balances:read/write, products:read/write
+                          - **ADMIN** - Full system access
+                          """,
             requiredMode = Schema.RequiredMode.REQUIRED,
             defaultValue = "USER",
             example = "USER"
@@ -144,6 +155,15 @@ public class User {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonView(Views.UserFullView.class)
     private Balance balance;
+
+    @Schema(
+            description = "User's cart",
+            accessMode = Schema.AccessMode.READ_ONLY,
+            example = "{\"id\": \"123e4567-e89b-12d3-a456-426614174000\"}"
+    )
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JsonView(Views.UserFullView.class)
+    private Cart cart;
 
     @Override
     public boolean equals(Object o) {

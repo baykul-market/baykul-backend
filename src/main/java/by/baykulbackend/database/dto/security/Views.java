@@ -9,7 +9,7 @@ public class Views {
         interface Put {}
     }
 
-    public interface UserFullView extends UserView.Get, RefreshTokenView.Get, BalanceView.Get {}
+    public interface UserFullView extends UserView.Get, RefreshTokenView.Get, BalanceView.Get, CartView.Get {}
 
     // Refresh token views
     public interface RefreshTokenView {
@@ -44,5 +44,23 @@ public class Views {
         interface Post {}
         interface Put {}
     }
+
+    // Cart views
+    public interface CartView {
+        interface Get {}
+        interface Post {}
+        interface Put {}
+    }
+
+    public interface CartFullView extends CartView.Get, UserView.Get, CartProductView.Get, PartView.Get {}
+
+    // Cart product views
+    public interface CartProductView {
+        interface Get {}
+        interface Post {}
+        interface Put {}
+    }
+
+    public interface CartProductFullView extends CartProductView.Get, CartView.Get, PartView.Get {}
 }
 

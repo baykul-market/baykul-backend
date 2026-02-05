@@ -35,7 +35,7 @@ public class Part {
     private UUID id;
 
     @Schema(
-            description = "Timestamp when the user was created",
+            description = "Timestamp when the product was created",
             accessMode = Schema.AccessMode.READ_ONLY,
             example = "2024-01-15T10:30:00"
     )
@@ -45,7 +45,7 @@ public class Part {
     private LocalDateTime createdTs;
 
     @Schema(
-            description = "Timestamp when the user was last updated",
+            description = "Timestamp when the product was last updated",
             accessMode = Schema.AccessMode.READ_ONLY,
             example = "2024-01-15T10:30:00"
     )

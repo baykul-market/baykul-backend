@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,7 +36,7 @@ public class BalanceRestController {
 
     @Operation(
             summary = "Get all balances",
-            description = "Retrieves all balances from the system with their users. Requires users:write permission.",
+            description = "Retrieves all balances from the system with their users. Requires balances:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -100,7 +101,7 @@ public class BalanceRestController {
             )
     })
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('users:write')")
+    @PreAuthorize("hasAnyAuthority('balances:write')")
     @JsonView(Views.BalanceView.Get.class)
     public List<Balance> getAll() {
         return iBalanceRepository.findAll();
@@ -108,7 +109,7 @@ public class BalanceRestController {
 
     @Operation(
             summary = "Get balance by ID",
-            description = "Retrieves a specific balance by UUID with their user. Requires users:read permission.",
+            description = "Retrieves a specific balance by UUID with their user. Requires balances:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -200,7 +201,7 @@ public class BalanceRestController {
             )
     })
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('users:read')")
+    @PreAuthorize("hasAnyAuthority('balances:write')")
     @JsonView(Views.BalanceFullView.class)
     public Balance getOne(
             @Parameter(
@@ -214,7 +215,7 @@ public class BalanceRestController {
 
     @Operation(
             summary = "Get balance by user ID",
-            description = "Retrieves a specific balance by user UUID with their user. Requires users:write permission.",
+            description = "Retrieves a specific balance by user UUID with their user. Requires balances:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -306,7 +307,7 @@ public class BalanceRestController {
             )
     })
     @GetMapping("/user/{id}")
-    @PreAuthorize("hasAnyAuthority('users:write')")
+    @PreAuthorize("hasAnyAuthority('balances:write')")
     @JsonView(Views.BalanceFullView.class)
     public Balance getByUserId(
             @Parameter(
@@ -320,7 +321,8 @@ public class BalanceRestController {
 
     @Operation(
             summary = "Perform balance operation",
-            description = "Performs a balance replenishment, withdrawal, or payment operation. Requires 'users:write' authority.",
+            description = "Performs a balance replenishment, withdrawal, or payment operation. " +
+                    "Requires 'balances:write' authority.",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Balance operation request data",
                     required = true,
@@ -403,8 +405,9 @@ public class BalanceRestController {
                     )
             )
     })
+    @Transactional
     @PostMapping("/operation")
-    @PreAuthorize("hasAnyAuthority('users:write')")
+    @PreAuthorize("hasAnyAuthority('balances:write')")
     public void operation(@RequestBody BalanceOperationDto balanceOperationDto) {
         balanceService.processBalance(balanceOperationDto);
     }

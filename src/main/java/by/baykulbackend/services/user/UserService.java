@@ -8,6 +8,7 @@ import by.baykulbackend.database.model.Role;
 import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.utils.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -69,8 +70,7 @@ public class UserService {
         iUserRepository.save(user);
         response.put("create_user", "true");
         response.put("id", user.getId().toString());
-        log.warn("User {} has ben created. -> {}", user.getLogin(),
-                authService.getAuthInfo().getPrincipal());
+        log.info("User {} has ben created.", user.getLogin());
 
         return ResponseEntity.ok(response);
     }
@@ -139,6 +139,7 @@ public class UserService {
     /**
      * Updates an existing user's information.
      * Only updates non-null fields from the provided user object.
+     * Validates input.
      *
      * @param userFromDB the User object to update
      * @param user       the User object containing updated fields
@@ -147,6 +148,10 @@ public class UserService {
     private ResponseEntity<?> updateUser(User userFromDB, User user) {
         Map<String, String> response = new HashMap<>();
         UUID id = userFromDB.getId();
+
+        if (isNotValidUser(user, response)) {
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
 
         if (hasNotUniqueData(user, response)) {
             return new ResponseEntity<>(response, HttpStatus.CONFLICT);
@@ -279,6 +284,44 @@ public class UserService {
         if (StringUtils.isBlank(user.getEmail()) && StringUtils.isBlank(user.getPhoneNumber())) {
             response.put("error_data", "One of the following must be filled in: email, phone number");
             log.warn("One of the following must be filled in: email, phone number");
+            return true;
+        }
+
+        return isNotValidUser(user, response);
+    }
+
+    /**
+     * Validates a user request.
+     *
+     * @param user the User object to validate
+     * @param response Map to collect validation error messages
+     * @return true if user data is valid, false otherwise
+     */
+    private boolean isNotValidUser(User user, Map<String, String> response) {
+        if (StringUtils.isNotBlank(user.getLogin())) {
+            if (user.getLogin().length() < 3) {
+                response.put("error_login", "The login must be at least 3 characters");
+                log.warn("The login must be at least 3 characters");
+                return true;
+            }
+
+            if (user.getLogin().length() > 50) {
+                response.put("error_login", "The login must be at most 50 characters");
+                log.warn("The login must be at most 50 characters");
+                return true;
+            }
+        }
+
+        if (StringUtils.isNotBlank(user.getPassword()) && user.getPassword().length() < 8) {
+            response.put("error_password", "The password must be at least 8 characters");
+            log.warn("The password must be at least 8 characters");
+            return true;
+        }
+
+
+        if (StringUtils.isNotBlank(user.getPhoneNumber()) && !Validator.isValidPhoneNumber(user.getPhoneNumber())) {
+            response.put("error_phone_number", "Invalid phone number");
+            log.warn("Invalid phone number");
             return true;
         }
 

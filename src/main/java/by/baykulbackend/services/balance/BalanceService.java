@@ -6,6 +6,7 @@ import by.baykulbackend.database.dto.balance.BalanceOperationDto;
 import by.baykulbackend.database.repository.balance.IBalanceRepository;
 import by.baykulbackend.exceptions.BadRequestException;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.user.AuthService;
 import jakarta.transaction.Transactional;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class BalanceService {
     private final IBalanceRepository iBalanceRepository;
+    private final AuthService authService;
 
     /**
      * Processes a balance operation.
@@ -32,6 +34,10 @@ public class BalanceService {
      */
     @Transactional
     public void processBalance(@NonNull BalanceOperationDto balanceOperation) {
+        log.info("Processing balance operation {}, amount {}, balanceId {}, userId {} -> {}",
+                balanceOperation.getOperationType(), balanceOperation.getAmount(), balanceOperation.getBalanceId(),
+                balanceOperation.getUserId(), authService.getAuthInfo().getPrincipal().toString());
+
         if (balanceOperation.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BadRequestException("Operation amount must be greater than zero");
         }
@@ -51,6 +57,8 @@ public class BalanceService {
                 UUID balanceId = UUID.fromString(balanceOperation.getBalanceId());
                 balance = iBalanceRepository.findByIdWithLock(balanceId).orElse(null);
             } catch (IllegalArgumentException e) {
+                log.warn("Invalid balance id while processing balance {} -> {}", balanceOperation.getBalanceId(),
+                        authService.getAuthInfo().getPrincipal().toString());
                 throw new BadRequestException("Invalid balance id");
             }
         }
@@ -61,6 +69,8 @@ public class BalanceService {
                 balance = iBalanceRepository.findByUserIdWithLock(userId)
                         .orElseThrow(() -> new NotFoundException("User balance not found"));
             } catch (IllegalArgumentException e) {
+                log.warn("Invalid user id while processing balance {} -> {}", balanceOperation.getUserId(),
+                        authService.getAuthInfo().getPrincipal().toString());
                 throw new BadRequestException("Invalid user id");
             }
         }
@@ -71,7 +81,11 @@ public class BalanceService {
         switch (balanceOperation.getOperationType()) {
             case REPLENISHMENT -> newAccount = currentAccount.add(balanceOperation.getAmount());
             case PAYMENT, WITHDRAWAL -> newAccount = currentAccount.subtract(balanceOperation.getAmount());
-            default -> throw new BadRequestException("Unexpected operation: " + balanceOperation.getOperationType());
+            default -> {
+                log.warn("Invalid balance operation while processing balance {} -> {}",
+                        balanceOperation.getOperationType(), authService.getAuthInfo().getPrincipal().toString());
+                throw new BadRequestException("Unexpected operation: " + balanceOperation.getOperationType());
+            }
         }
 
         BalanceHistory balanceHistory = new BalanceHistory();
@@ -84,5 +98,9 @@ public class BalanceService {
         balance.setAccount(newAccount);
         balance.getBalanceHistoryList().add(balanceHistory);
         iBalanceRepository.save(balance);
+        
+        log.info("Successfully processed balance operation {}, amount {}, balanceId {}, userId {} -> {}",
+                balanceOperation.getOperationType(), balanceOperation.getAmount(), balanceOperation.getBalanceId(),
+                balanceOperation.getUserId(), authService.getAuthInfo().getPrincipal().toString());
     }
 }
