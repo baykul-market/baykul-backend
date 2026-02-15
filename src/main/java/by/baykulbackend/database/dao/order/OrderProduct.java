@@ -67,7 +67,7 @@ public class OrderProduct {
     private Long number;
 
     @Schema(
-            description = "Order product orderStatus",
+            description = "Order product status",
             requiredMode = Schema.RequiredMode.REQUIRED,
             example = "ORDERED",
             allowableValues = {"ORDERED", "IN_WAREHOUSE", "ON_WAY", "ARRIVED", "DELIVERED", "RETURNED", "CANCELLED"}

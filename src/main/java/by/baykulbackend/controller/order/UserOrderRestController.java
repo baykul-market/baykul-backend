@@ -56,7 +56,7 @@ public class UserOrderRestController {
                                                 "createdTs": "2024-01-15T10:30:00",
                                                 "updatedTs": "2024-01-20T14:45:30",
                                                 "number": 100001,
-                                                "status": "NEW",
+                                                "status": "CREATED",
                                                 "user": {
                                                   "id": "123e4567-e89b-12d3-a456-426614174000",
                                                   "login": "john_doe"
@@ -65,7 +65,7 @@ public class UserOrderRestController {
                                                   {
                                                     "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                     "number": null,
-                                                    "status": "NEW",
+                                                    "status": "ORDERED",
                                                     "part": {
                                                       "id": "63e9276f-ccce-45a7-9c28-e1ce24354eea",
                                                       "article": "2405947",
@@ -149,7 +149,7 @@ public class UserOrderRestController {
                                               "createdTs": "2024-01-15T10:30:00",
                                               "updatedTs": "2024-01-20T14:45:30",
                                               "number": 100001,
-                                              "status": "NEW",
+                                              "status": "CREATED",
                                               "user": {
                                                 "id": "123e4567-e89b-12d3-a456-426614174000",
                                                 "login": "john_doe"
@@ -158,7 +158,7 @@ public class UserOrderRestController {
                                                 {
                                                   "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                   "number": null,
-                                                  "status": "NEW",
+                                                  "status": "ORDERED",
                                                   "part": {
                                                     "id": "63e9276f-ccce-45a7-9c28-e1ce24354eea",
                                                     "article": "2405947",
