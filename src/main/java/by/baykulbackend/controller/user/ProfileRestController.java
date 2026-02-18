@@ -130,7 +130,7 @@ public class ProfileRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "User not found",
+                                              "error": "User not found"
                                             }
                                             """
                             )
@@ -139,7 +139,7 @@ public class ProfileRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserFullView.class)
-    @GetMapping()
+    @GetMapping
     public User getProfile() {
         return iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User not found"));
@@ -256,7 +256,7 @@ public class ProfileRestController {
     })
     @Transactional
     @PreAuthorize("hasAnyAuthority('users:read')")
-    @PutMapping()
+    @PutMapping
     public ResponseEntity<?> updateProfile(@RequestBody @JsonView(Views.UserView.Put.class) User user) {
         return userService.updateProfile(user);
     }
@@ -345,7 +345,7 @@ public class ProfileRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "User not found",
+                                              "error": "User not found"
                                             }
                                             """
                             )
@@ -394,7 +394,7 @@ public class ProfileRestController {
                                               },
                                               "balanceHistoryList": [
                                                 {
-                                                  "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea"
+                                                  "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                   "amount": 10.00,
                                                   "operationType": "REPLENISHMENT",
                                                   "resultAccount": 20.00
@@ -446,7 +446,7 @@ public class ProfileRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "User balance not found",
+                                              "error": "User balance not found"
                                             }
                                             """
                             )

@@ -10,7 +10,6 @@ import by.baykulbackend.services.product.ProductCsvService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,8 +17,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameters;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,50 +43,57 @@ public class PartRestController {
 
     @Operation(
             summary = "Get all parts",
-            description = "Retrieves all spare parts from the system. Requires products:read permission.",
+            description = "Retrieves all spare parts from the system with pagination support. " +
+                    "Requires products:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "List of parts retrieved successfully",
+                    description = "Page of parts retrieved successfully",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = Views.PartView.Get.class)),
+                            schema = @Schema(implementation = Page.class),
                             examples = @ExampleObject(
                                     name = "All parts response example",
                                     summary = "List of all spare parts",
                                     value = """
-                                            [
-                                              {
-                                                "id": "123e4567-e89b-12d3-a456-426614174001",
-                                                "createdTs": "2024-01-15T10:30:00",
-                                                "updatedTs": "2024-01-20T14:45:30",
-                                                "article": "2405947",
-                                                "name": "Engine Oil LL01 5W30",
-                                                "weight": 150.4,
-                                                "minCount": 3,
-                                                "storageCount": 5,
-                                                "returnPart": 3.01,
-                                                "price": 7862.43,
-                                                "currency": "EUR",
-                                                "brand": "rolls royce"
+                                            {
+                                              "content": [
+                                                {
+                                                  "id": "123e4567-e89b-12d3-a456-426614174001",
+                                                  "createdTs": "2024-01-15T10:30:00",
+                                                  "updatedTs": "2024-01-20T14:45:30",
+                                                  "article": "2405947",
+                                                  "name": "Engine Oil LL01 5W30",
+                                                  "weight": 150.4,
+                                                  "minCount": 3,
+                                                  "storageCount": 5,
+                                                  "returnPart": 3.01,
+                                                  "price": 7862.43,
+                                                  "currency": "EUR",
+                                                  "brand": "rolls royce"
+                                                }
+                                              ],
+                                              "pageable": {
+                                                "pageNumber": 0,
+                                                "pageSize": 20,
+                                                "sort": {
+                                                  "sorted": true,
+                                                  "unsorted": false
+                                                }
                                               },
-                                              {
-                                                "id": "123e4567-e89b-12d3-a456-426614174002",
-                                                "createdTs": "2024-01-16T09:15:00",
-                                                "updatedTs": "2024-01-19T11:20:00",
-                                                "article": "2405948",
-                                                "name": "Air Filter",
-                                                "weight": 0.5,
-                                                "minCount": 1,
-                                                "storageCount": 10,
-                                                "returnPart": 0.00,
-                                                "price": 450.00,
-                                                "currency": "EUR",
-                                                "brand": "BMW"
-                                              }
-                                            ]
+                                              "totalPages": 5,
+                                              "totalElements": 100,
+                                              "last": false,
+                                              "first": true,
+                                              "empty": false
+                                            }
                                             """
                             )
                     )
@@ -123,8 +134,10 @@ public class PartRestController {
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping
     @JsonView(Views.PartView.Get.class)
-    public List<Part> getAll() {
-        return iPartRepository.findAll();
+    public List<Part> getAll(
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iPartRepository.findAll(pageable).stream().toList();
     }
 
     @Operation(
@@ -202,7 +215,7 @@ public class PartRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "Part not found",
+                                              "error": "Part not found"
                                             }
                                             """
                             )
@@ -210,7 +223,7 @@ public class PartRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
-    @GetMapping("/{id}")
+    @GetMapping("/id")
     @JsonView(Views.PartView.Get.class)
     public Part getOne(
             @Parameter(
@@ -218,7 +231,7 @@ public class PartRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return iPartRepository.findById(id).orElseThrow(() -> new NotFoundException("Part not found"));
     }
 
@@ -559,14 +572,14 @@ public class PartRestController {
     })
     @Transactional
     @PreAuthorize("hasAnyAuthority('products:write')")
-    @PutMapping("/{id}")
+    @PutMapping
     public ResponseEntity<?> update(
             @Parameter(
                     description = "UUID of the part to update",
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
-            @PathVariable UUID id,
+            @RequestParam UUID id,
             @RequestBody @JsonView(Views.PartView.Put.class) Part part) {
         return partService.updatePart(id, part);
     }
@@ -643,14 +656,14 @@ public class PartRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:write')")
-    @DeleteMapping("/{id}")
+    @DeleteMapping
     public ResponseEntity<?> delete(
             @Parameter(
                     description = "UUID of the part to delete",
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return partService.deletePartById(id);
     }
 }

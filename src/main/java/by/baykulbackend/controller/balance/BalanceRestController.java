@@ -9,6 +9,7 @@ import by.baykulbackend.services.balance.BalanceService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -19,6 +20,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -39,6 +43,11 @@ public class BalanceRestController {
             description = "Retrieves all balances from the system with their users. Requires balances:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -103,8 +112,10 @@ public class BalanceRestController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('balances:write')")
     @JsonView(Views.BalanceView.Get.class)
-    public List<Balance> getAll() {
-        return iBalanceRepository.findAll();
+    public List<Balance> getAll(
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iBalanceRepository.findAll(pageable).stream().toList();
     }
 
     @Operation(
@@ -141,7 +152,7 @@ public class BalanceRestController {
                                               },
                                               "balanceHistoryList": [
                                                 {
-                                                  "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea"
+                                                  "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                   "amount": 10.00,
                                                   "operationType": "REPLENISHMENT",
                                                   "resultAccount": 20.00
@@ -193,14 +204,14 @@ public class BalanceRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "Balance not found",
+                                              "error": "Balance not found"
                                             }
                                             """
                             )
                     )
             )
     })
-    @GetMapping("/{id}")
+    @GetMapping("/id")
     @PreAuthorize("hasAnyAuthority('balances:write')")
     @JsonView(Views.BalanceFullView.class)
     public Balance getOne(
@@ -209,7 +220,7 @@ public class BalanceRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return iBalanceRepository.findById(id).orElseThrow(() -> new NotFoundException("Balance not found"));
     }
 
@@ -247,7 +258,7 @@ public class BalanceRestController {
                                               },
                                               "balanceHistoryList": [
                                                 {
-                                                  "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea"
+                                                  "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                   "amount": 10.00,
                                                   "operationType": "REPLENISHMENT",
                                                   "resultAccount": 20.00
@@ -299,14 +310,14 @@ public class BalanceRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "User balance not found",
+                                              "error": "User balance not found"
                                             }
                                             """
                             )
                     )
             )
     })
-    @GetMapping("/user/{id}")
+    @GetMapping("/user")
     @PreAuthorize("hasAnyAuthority('balances:write')")
     @JsonView(Views.BalanceFullView.class)
     public Balance getByUserId(
@@ -315,8 +326,8 @@ public class BalanceRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID id) {
-        return iBalanceRepository.findByUserId(id).orElseThrow(() -> new NotFoundException("User balance not found"));
+            @RequestParam UUID userId) {
+        return iBalanceRepository.findByUserId(userId).orElseThrow(() -> new NotFoundException("User balance not found"));
     }
 
     @Operation(

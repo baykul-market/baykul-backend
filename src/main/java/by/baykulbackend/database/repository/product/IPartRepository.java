@@ -1,18 +1,31 @@
 package by.baykulbackend.database.repository.product;
 
 import by.baykulbackend.database.dao.product.Part;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface IPartRepository extends JpaRepository<Part, UUID> {
     Optional<Part> findByArticle(String article);
     boolean existsByArticle(String article);
-    List<Part> findByName(String name);
-    List<Part> findByBrand(String brand);
-    List<Part> findByArticleContainingIgnoreCase(String article);
-    List<Part> findByNameContainingIgnoreCase(String name);
-    List<Part> findByBrandContainingIgnoreCase(String brand);
+    Page<Part> findByName(String name, Pageable pageable);
+    Page<Part> findByBrand(String brand, Pageable pageable);
+    Page<Part> findByArticleContainingIgnoreCase(String article, Pageable pageable);
+    Page<Part> findByNameContainingIgnoreCase(String name, Pageable pageable);
+    Page<Part> findByBrandContainingIgnoreCase(String brand, Pageable pageable);
+    Page<Part> findByBrandContainingIgnoreCaseAndNameContainingIgnoreCase(
+            String brand, String name, Pageable pageable
+    );
+    Page<Part> findByArticleContainingIgnoreCaseAndNameContainingIgnoreCase(
+            String article, String name, Pageable pageable
+    );
+    Page<Part> findByBrandContainingIgnoreCaseAndArticleContainingIgnoreCase(
+            String brand, String article, Pageable pageable
+    );
+    Page<Part> findByBrandContainingIgnoreCaseAndNameContainingIgnoreCaseAndArticleContainingIgnoreCase(
+            String brand, String name, String article, Pageable pageable
+    );
 }

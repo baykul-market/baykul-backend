@@ -9,6 +9,7 @@ import by.baykulbackend.services.order.OrderService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -18,6 +19,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,9 +40,14 @@ public class OrderRestController {
 
     @Operation(
             summary = "Get all orders",
-            description = "Retrieves all orders from the system. Requires orders:write permission.",
+            description = "Retrieves all orders from the system with pagination. Requires orders:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -78,11 +87,11 @@ public class OrderRestController {
                             examples = @ExampleObject(
                                     name = "Unauthorized example",
                                     value = """
-                                            {
-                                              "error": "Unauthorized",
-                                              "message": "Full authentication is required to access this resource"
-                                            }
-                                            """
+                                        {
+                                          "error": "Unauthorized",
+                                          "message": "Full authentication is required to access this resource"
+                                        }
+                                        """
                             )
                     )
             ),
@@ -94,11 +103,11 @@ public class OrderRestController {
                             examples = @ExampleObject(
                                     name = "Forbidden example",
                                     value = """
-                                            {
-                                              "error": "Forbidden",
-                                              "message": "Access Denied"
-                                            }
-                                            """
+                                        {
+                                          "error": "Forbidden",
+                                          "message": "Access Denied"
+                                        }
+                                        """
                             )
                     )
             )
@@ -106,8 +115,10 @@ public class OrderRestController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('orders:write')")
     @JsonView(Views.OrderView.Get.class)
-    public List<Order> getAll() {
-        return iOrderRepository.findAll();
+    public List<Order> getAll(
+            @PageableDefault(size = 20, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iOrderRepository.findAll(pageable).stream().toList();
     }
 
     @Operation(
@@ -216,7 +227,7 @@ public class OrderRestController {
                     )
             )
     })
-    @GetMapping("/{id}")
+    @GetMapping("/id")
     @PreAuthorize("hasAnyAuthority('orders:write')")
     @JsonView(Views.OrderFullView.class)
     public Order getOne(
@@ -225,7 +236,7 @@ public class OrderRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return iOrderRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
     }
@@ -332,7 +343,7 @@ public class OrderRestController {
                     )
             )
     })
-    @PutMapping("/{id}")
+    @PutMapping
     @PreAuthorize("hasAnyAuthority('orders:write')")
     public ResponseEntity<?> update(
             @Parameter(
@@ -340,7 +351,7 @@ public class OrderRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID id,
+            @RequestParam UUID id,
             @RequestBody Order order) {
         return orderService.updateOrder(id, order);
     }
@@ -449,7 +460,7 @@ public class OrderRestController {
                     )
             )
     })
-    @PutMapping("/product/{id}")
+    @PutMapping("/product")
     @PreAuthorize("hasAnyAuthority('orders:write')")
     public ResponseEntity<?> updateOrderProduct(
             @Parameter(
@@ -457,7 +468,7 @@ public class OrderRestController {
                     required = true,
                     example = "30e9276f-ccce-45a7-9c28-e1ce22254eea"
             )
-            @PathVariable UUID id,
+            @RequestParam UUID id,
             @RequestBody OrderProduct orderProduct) {
         return orderService.updateOrderProduct(id, orderProduct);
     }

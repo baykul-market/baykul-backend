@@ -120,7 +120,7 @@ public class OrderService {
             iOrderProductRepository.save(orderProduct);
         }
 
-        iCartProductRepository.deleteAllByCart(cart);
+        iCartProductRepository.deleteAllByCartId(cart.getId());
 
         response.put("create_order", "true");
         response.put("id", order.getId().toString());

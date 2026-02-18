@@ -8,13 +8,15 @@ import by.baykulbackend.services.user.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -169,14 +171,74 @@ public class PartService {
      * Returns distinct parts to avoid duplicates.
      *
      * @param text the search text to match against part attributes
-     * @return List of matching Part objects
+     * @param pageable pagination and sorting parameters
+     * @return Page of matching Part objects
      */
-    public List<Part> searchPart(String text) {
-        List<Part> result = new ArrayList<>();
-        result.addAll(iPartRepository.findByArticleContainingIgnoreCase(text));
-        result.addAll(iPartRepository.findByNameContainingIgnoreCase(text));
+    public Page<Part> searchPart(String text, Pageable pageable) {
+        if (text == null || text.isEmpty()) {
+            return Page.empty(pageable);
+        }
 
-        return result.stream().distinct().collect(Collectors.toList());
+        Page<Part> articleResults = iPartRepository.findByArticleContainingIgnoreCase(text, pageable);
+        Page<Part> nameResults = iPartRepository.findByNameContainingIgnoreCase(text, pageable);
+
+        Set<Part> combined = new LinkedHashSet<>();
+        combined.addAll(articleResults.getContent());
+        combined.addAll(nameResults.getContent());
+
+        List<Part> content = new ArrayList<>(combined);
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), content.size());
+
+        if (start > content.size()) {
+            return new PageImpl<>(new ArrayList<>(), pageable, content.size());
+        }
+
+        List<Part> pageContent = content.subList(start, end);
+        return new PageImpl<>(pageContent, pageable, content.size());
+    }
+
+    /**
+     * Searches for parts by multiple filters with pagination using optimized repository methods.
+     *
+     * @param article article filter (optional)
+     * @param name name filter (optional)
+     * @param brand brand filter (optional)
+     * @param pageable pagination and sorting parameters
+     * @return Page of matching Part objects
+     */
+    public Page<Part> searchPartsByFilter(String article, String name, String brand, Pageable pageable) {
+        boolean hasArticle = StringUtils.isNotBlank(article);
+        boolean hasName = StringUtils.isNotBlank(name);
+        boolean hasBrand = StringUtils.isNotBlank(brand);
+
+        if (!hasArticle && !hasName && !hasBrand) {
+            Page<Part> parts = iPartRepository.findAll(pageable);
+            return parts;
+        }
+
+        if (hasArticle && hasName && hasBrand) {
+            return iPartRepository.findByBrandContainingIgnoreCaseAndNameContainingIgnoreCaseAndArticleContainingIgnoreCase(
+                    brand, name, article, pageable
+            );
+        } else if (hasArticle && hasName) {
+            return iPartRepository.findByArticleContainingIgnoreCaseAndNameContainingIgnoreCase(
+                    article, name, pageable
+            );
+        } else if (hasArticle && hasBrand) {
+            return iPartRepository.findByBrandContainingIgnoreCaseAndArticleContainingIgnoreCase(
+                    brand, article, pageable
+            );
+        } else if (hasName && hasBrand) {
+            return iPartRepository.findByBrandContainingIgnoreCaseAndNameContainingIgnoreCase(brand, name, pageable);
+        } else if (hasArticle) {
+            return iPartRepository.findByArticleContainingIgnoreCase(article, pageable);
+        } else if (hasName) {
+            return iPartRepository.findByNameContainingIgnoreCase(name, pageable);
+        } else {
+            return iPartRepository.findByBrandContainingIgnoreCase(brand, pageable);
+        }
     }
 
     /**

@@ -9,6 +9,7 @@ import by.baykulbackend.services.user.UserService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -19,6 +20,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,6 +45,11 @@ public class UserRestController {
             description = "Retrieves all users from the system with their refresh tokens. Requires users:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -126,8 +135,10 @@ public class UserRestController {
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping
-    public List<User> getAll() {
-        return iUserRepository.findAll();
+    public List<User> getAll(
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iUserRepository.findAll(pageable).stream().toList();
     }
 
     @Operation(
@@ -219,7 +230,7 @@ public class UserRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "User not found",
+                                              "error": "User not found"
                                             }
                                             """
                             )
@@ -228,14 +239,14 @@ public class UserRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserFullView.class)
-    @GetMapping("/{id}")
+    @GetMapping("/id")
     public User getOne(
             @Parameter(
                     description = "UUID of the user to retrieve",
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
     }
 
@@ -547,14 +558,14 @@ public class UserRestController {
     })
     @Transactional
     @PreAuthorize("hasAnyAuthority('users:write')")
-    @PutMapping("/{id}")
+    @PutMapping("/id")
     public ResponseEntity<?> update(
             @Parameter(
                     description = "UUID of the user to update",
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
-            @PathVariable UUID id,
+            @RequestParam UUID id,
             @RequestBody @JsonView(Views.UserView.Put.class) User user) {
         return userService.updateUserById(id, user);
     }
@@ -631,14 +642,14 @@ public class UserRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/id")
     public ResponseEntity<?> delete(
             @Parameter(
                     description = "UUID of the user to delete",
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return userService.deleteUserById(id);
     }
 }

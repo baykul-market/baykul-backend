@@ -138,86 +138,6 @@ public class UserCartRestController {
     }
 
     @Operation(
-            summary = "Create user's cart",
-            description = "Creates a new cart for the currently authenticated user. Requires carts:read permission.",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Cart created successfully",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Create cart success example",
-                                    summary = "Cart created successfully",
-                                    value = """
-                                            {
-                                              "create_cart": "true",
-                                              "id": "123e4567-e89b-12d3-a456-426614174003"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - JWT token missing or invalid",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Unauthorized example",
-                                    value = """
-                                            {
-                                              "error": "Unauthorized",
-                                              "message": "Full authentication is required to access this resource"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - insufficient permissions",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Forbidden example",
-                                    value = """
-                                            {
-                                              "error": "Forbidden",
-                                              "message": "Access Denied"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Conflict - cart already exists",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Conflict example",
-                                    summary = "Cart already exists",
-                                    value = """
-                                            {
-                                              "create_cart": "false",
-                                              "warn": "Cart already exists",
-                                              "id": "123e4567-e89b-12d3-a456-426614174001"
-                                            }
-                                            """
-                            )
-                    )
-            )
-    })
-    @PostMapping
-    @PreAuthorize("hasAnyAuthority('carts:read')")
-    public ResponseEntity<?> create() {
-        return cartService.createCart();
-    }
-
-    @Operation(
             summary = "Add part to user's cart",
             description = "Adds a part to the currently authenticated user's cart. Requires carts:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
@@ -306,7 +226,7 @@ public class UserCartRestController {
                     )
             )
     })
-    @PostMapping("/add/{partId}")
+    @PostMapping("/add")
     @PreAuthorize("hasAnyAuthority('carts:read')")
     public ResponseEntity<?> addPart(
             @Parameter(
@@ -314,7 +234,7 @@ public class UserCartRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID partId) {
+            @RequestParam UUID partId) {
         return cartService.addPartToCart(partId);
     }
 
@@ -422,7 +342,7 @@ public class UserCartRestController {
                     )
             )
     })
-    @PutMapping("/update/{id}")
+    @PutMapping("/update")
     @PreAuthorize("hasAnyAuthority('carts:read')")
     public ResponseEntity<?> updateCartProduct(
             @Parameter(
@@ -430,7 +350,7 @@ public class UserCartRestController {
                     required = true,
                     example = "30e9276f-ccce-45a7-9c28-e1ce22254eea"
             )
-            @PathVariable UUID id,
+            @RequestParam UUID id,
             @RequestBody CartProduct cartProduct) {
         return cartService.updateUsersCartProductById(id, cartProduct);
     }
@@ -583,7 +503,7 @@ public class UserCartRestController {
                     )
             )
     })
-    @DeleteMapping("/product/{id}")
+    @DeleteMapping("/product")
     @PreAuthorize("hasAnyAuthority('carts:read')")
     public ResponseEntity<?> deleteCartProduct(
             @Parameter(
@@ -591,83 +511,7 @@ public class UserCartRestController {
                     required = true,
                     example = "30e9276f-ccce-45a7-9c28-e1ce22254eea"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return cartService.deleteUsersCartProductById(id);
-    }
-
-    @Operation(
-            summary = "Delete user's cart",
-            description = "Deletes the entire cart of the currently authenticated user. Requires carts:read permission.",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Cart deleted successfully",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Delete cart success example",
-                                    summary = "Cart deleted successfully",
-                                    value = """
-                                            {
-                                              "delete_cart": "true"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - JWT token missing or invalid",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Unauthorized example",
-                                    value = """
-                                            {
-                                              "error": "Unauthorized",
-                                              "message": "Full authentication is required to access this resource"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - insufficient permissions",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Forbidden example",
-                                    value = """
-                                            {
-                                              "error": "Forbidden",
-                                              "message": "Access Denied"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Cart not found",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Not found example",
-                                    value = """
-                                            {
-                                              "error": "User's cart not found"
-                                            }
-                                            """
-                            )
-                    )
-            )
-    })
-    @DeleteMapping
-    @PreAuthorize("hasAnyAuthority('carts:read')")
-    public ResponseEntity<?> deleteCart() {
-        return cartService.deleteUsersCart();
     }
 }

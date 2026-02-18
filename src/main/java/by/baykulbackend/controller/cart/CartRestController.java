@@ -9,6 +9,7 @@ import by.baykulbackend.services.cart.CartService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -18,6 +19,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,6 +43,11 @@ public class CartRestController {
             description = "Retrieves all carts from the system with their users. Requires carts:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -102,8 +111,10 @@ public class CartRestController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('carts:write')")
     @JsonView(Views.CartView.Get.class)
-    public List<Cart> getAll() {
-        return iCartRepository.findAll();
+    public List<Cart> getAll(
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iCartRepository.findAll(pageable).stream().toList();
     }
 
     @Operation(
@@ -208,7 +219,7 @@ public class CartRestController {
                     )
             )
     })
-    @GetMapping("/{id}")
+    @GetMapping("/id")
     @PreAuthorize("hasAnyAuthority('carts:write')")
     @JsonView(Views.CartFullView.class)
     public Cart getOne(
@@ -217,108 +228,8 @@ public class CartRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return iCartRepository.findById(id).orElseThrow(() -> new NotFoundException("Cart not found"));
-    }
-
-    @Operation(
-            summary = "Create cart for user",
-            description = "Creates a new cart for a specific user. Requires carts:write permission.",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Cart created successfully",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Create cart success example",
-                                    summary = "Cart created successfully",
-                                    value = """
-                                            {
-                                              "create_cart": "true",
-                                              "id": "123e4567-e89b-12d3-a456-426614174003"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - JWT token missing or invalid",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Unauthorized example",
-                                    value = """
-                                            {
-                                              "error": "Unauthorized",
-                                              "message": "Full authentication is required to access this resource"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - insufficient permissions",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Forbidden example",
-                                    value = """
-                                            {
-                                              "error": "Forbidden",
-                                              "message": "Access Denied"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "User not found",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Not found example",
-                                    value = """
-                                            {
-                                              "error": "User not found"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "Conflict - cart already exists or user is illegal to have a cart",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Conflict example",
-                                    summary = "Cart creation conflict",
-                                    value = """
-                                            {
-                                              "create_cart": "false",
-                                              "warn": "User with id is illegal to have a cart"
-                                            }
-                                            """
-                            )
-                    )
-            )
-    })
-    @PostMapping("/{userId}")
-    @PreAuthorize("hasAnyAuthority('carts:write')")
-    public ResponseEntity<?> create(
-            @Parameter(
-                    description = "UUID of the user for whom to create the cart",
-                    required = true,
-                    example = "123e4567-e89b-12d3-a456-426614174001"
-            )
-            @PathVariable UUID userId) {
-        return cartService.createCart(userId);
     }
 
     @Operation(
@@ -410,7 +321,7 @@ public class CartRestController {
                     )
             )
     })
-    @PostMapping("/{cartId}/add/{partId}")
+    @PostMapping("/add")
     @PreAuthorize("hasAnyAuthority('carts:write')")
     public ResponseEntity<?> addPart(
             @Parameter(
@@ -418,13 +329,13 @@ public class CartRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
-            @PathVariable UUID cartId,
+            @RequestParam UUID cartId,
             @Parameter(
                     description = "UUID of the part to add to cart",
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174002"
             )
-            @PathVariable UUID partId) {
+            @RequestParam UUID partId) {
         return cartService.addPartToCart(cartId, partId);
     }
 
@@ -531,7 +442,7 @@ public class CartRestController {
                     )
             )
     })
-    @PutMapping("/update/{id}")
+    @PutMapping("/update")
     @PreAuthorize("hasAnyAuthority('carts:write')")
     public ResponseEntity<?> updateCartProduct(
             @Parameter(
@@ -539,7 +450,7 @@ public class CartRestController {
                     required = true,
                     example = "30e9276f-ccce-45a7-9c28-e1ce22254eea"
             )
-            @PathVariable UUID id,
+            @RequestParam UUID id,
             @RequestBody CartProduct cartProduct) {
         return cartService.updateCartProductById(id, cartProduct);
     }
@@ -614,7 +525,7 @@ public class CartRestController {
                     )
             )
     })
-    @DeleteMapping("/product/{id}")
+    @DeleteMapping("/product")
     @PreAuthorize("hasAnyAuthority('carts:write')")
     public ResponseEntity<?> deleteCartProduct(
             @Parameter(
@@ -622,89 +533,7 @@ public class CartRestController {
                     required = true,
                     example = "30e9276f-ccce-45a7-9c28-e1ce22254eea"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return cartService.deleteCartProductById(id);
-    }
-
-    @Operation(
-            summary = "Delete cart",
-            description = "Deletes a cart by ID. Requires carts:write permission.",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "Cart deleted successfully",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Delete cart success example",
-                                    summary = "Cart deleted successfully",
-                                    value = """
-                                            {
-                                              "delete_cart": "true"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - JWT token missing or invalid",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Unauthorized example",
-                                    value = """
-                                            {
-                                              "error": "Unauthorized",
-                                              "message": "Full authentication is required to access this resource"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - insufficient permissions",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Forbidden example",
-                                    value = """
-                                            {
-                                              "error": "Forbidden",
-                                              "message": "Access Denied"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "Cart not found",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Not found example",
-                                    value = """
-                                            {
-                                              "error": "Cart not found"
-                                            }
-                                            """
-                            )
-                    )
-            )
-    })
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyAuthority('carts:write')")
-    public ResponseEntity<?> deleteCart(
-            @Parameter(
-                    description = "UUID of the cart to delete",
-                    required = true,
-                    example = "123e4567-e89b-12d3-a456-426614174001"
-            )
-            @PathVariable UUID id) {
-        return cartService.deleteCartById(id);
     }
 }

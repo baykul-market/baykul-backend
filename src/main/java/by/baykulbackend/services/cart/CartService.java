@@ -33,33 +33,6 @@ public class CartService {
     private final AuthService authService;
 
     /**
-     * Creates a new cart for a specific user.
-     *
-     * @param userId the UUID of the user for whom to create the cart
-     * @return ResponseEntity with success/error message
-     * @throws NotFoundException if no user is found with the given ID
-     */
-    public ResponseEntity<?> createCart(UUID userId) {
-        User user = iUserRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
-
-        return createCart(user);
-    }
-
-    /**
-     * Creates a new cart for the currently authenticated user.
-     *
-     * @return ResponseEntity with success/error message
-     * @throws NotFoundException if the authenticated user is not found
-     */
-    public ResponseEntity<?> createCart() {
-        User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
-                .orElseThrow(() -> new NotFoundException("User not found"));
-
-        return createCart(user);
-    }
-
-    /**
      * Adds a part to a specific cart.
      *
      * @param cartId the UUID of the cart to add the part to
@@ -167,44 +140,6 @@ public class CartService {
     }
 
     /**
-     * Deletes the currently authenticated user's cart.
-     *
-     * @return ResponseEntity with success/error message
-     * @throws NotFoundException if user's cart is not found
-     */
-    @Transactional
-    public ResponseEntity<?> deleteUsersCart() {
-        Map<String, String> response = new HashMap<>();
-
-        Cart cart = iCartRepository.findByUserLogin(authService.getAuthInfo().getPrincipal().toString())
-                .orElseThrow(() -> new NotFoundException("User's cart not found"));
-
-        iCartRepository.delete(cart);
-        response.put("delete_cart", "true");
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Deletes a cart by ID (admin function).
-     *
-     * @param id the UUID of the cart to delete
-     * @return ResponseEntity with success/error message
-     * @throws NotFoundException if cart is not found
-     */
-    @Transactional
-    public ResponseEntity<?> deleteCartById(UUID id) {
-        Map<String, String> response = new HashMap<>();
-
-        Cart cart = iCartRepository.findById(id).orElseThrow(() -> new NotFoundException("Cart not found"));
-
-        iCartRepository.delete(cart);
-        response.put("delete_cart", "true");
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
      * Deletes a cart product from the currently authenticated user's cart.
      * Validates that the cart product belongs to the user's cart.
      *
@@ -266,33 +201,9 @@ public class CartService {
         Cart cart = iCartRepository.findByUserLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User's cart not found"));
 
-        iCartProductRepository.deleteAllByCart(cart);
+        iCartProductRepository.deleteAllByCartId(cart.getId());
         response.put("clear_cart", "true");
         log.info("Clear cart product with id = {} -> {}", cart.getId(), authService.getAuthInfo().getPrincipal());
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Creates a new cart for a user.
-     * Validates that the user is eligible to have a cart and doesn't already have one.
-     *
-     * @param user the User for whom to create the cart
-     * @return ResponseEntity with success/error message
-     */
-    private ResponseEntity<?> createCart(User user) {
-        Map<String, String> response = new HashMap<>();
-
-        if (isNotValidNewCart(user, response)) {
-            return new ResponseEntity<>(response, HttpStatus.CONFLICT);
-        }
-
-        Cart cart = new Cart();
-        cart.setUser(user);
-        iCartRepository.save(cart);
-        response.put("create_cart", "true");
-        log.info("Cart {} has ben created. -> {}", cart.getUser().getLogin(),
-                authService.getAuthInfo().getPrincipal());
 
         return ResponseEntity.ok(response);
     }

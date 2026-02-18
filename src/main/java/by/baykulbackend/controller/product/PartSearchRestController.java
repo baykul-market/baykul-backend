@@ -16,7 +16,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameters;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,9 +36,16 @@ public class PartSearchRestController {
 
     @Operation(
             summary = "Search parts",
-            description = "Searches parts by article or name containing the specified text (case-insensitive). Requires products:read permission.",
+            description = "Searches parts by article or name containing the specified text (case-insensitive) with pagination. " +
+                    "Requires products:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "text", description = "Text to search for in article or name", required = true, example = "engine"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -114,16 +125,102 @@ public class PartSearchRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
-    @GetMapping("/{text}")
+    @GetMapping
     @JsonView(Views.PartView.Get.class)
     public List<Part> search(
-            @Parameter(
-                    description = "Text to search for in article or name",
-                    required = true,
-                    example = "engine"
+            @RequestParam(required = false, defaultValue = "") String text,
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return partService.searchPart(text, pageable).stream().toList();
+    }
+
+    @Operation(
+            summary = "Search parts by multiple filters",
+            description = "Searches parts by article, name, and brand with pagination. All parameters are optional. Requires products:read permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @Parameters({
+            @Parameter(name = "article", description = "Article text to search for (case-insensitive, partial match)", example = "24059"),
+            @Parameter(name = "name", description = "Name text to search for (case-insensitive, partial match)", example = "engine"),
+            @Parameter(name = "brand", description = "Brand text to search for (case-insensitive, partial match)", example = "rolls"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Search results retrieved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = Views.PartView.Get.class)),
+                            examples = @ExampleObject(
+                                    name = "Filter search results example",
+                                    summary = "Filter search results",
+                                    value = """
+                                            [
+                                              {
+                                                "id": "123e4567-e89b-12d3-a456-426614174001",
+                                                "createdTs": "2024-01-15T10:30:00",
+                                                "updatedTs": "2024-01-20T14:45:30",
+                                                "article": "2405947",
+                                                "name": "Engine Oil LL01 5W30",
+                                                "weight": 150.4,
+                                                "minCount": 3,
+                                                "storageCount": 5,
+                                                "returnPart": 3.01,
+                                                "price": 7862.43,
+                                                "currency": "EUR",
+                                                "brand": "rolls royce"
+                                              }
+                                            ]
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized - JWT token missing or invalid",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "Unauthorized example",
+                                    value = """
+                                        {
+                                          "error": "Unauthorized",
+                                          "message": "Full authentication is required to access this resource"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - insufficient permissions",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "Forbidden example",
+                                    value = """
+                                        {
+                                          "error": "Forbidden",
+                                          "message": "Access Denied"
+                                        }
+                                        """
+                            )
+                    )
             )
-            @PathVariable String text) {
-        return partService.searchPart(text);
+    })
+    @PreAuthorize("hasAnyAuthority('products:read')")
+    @GetMapping("/filter")
+    @JsonView(Views.PartView.Get.class)
+    public List<Part> searchByFilter(
+            @RequestParam(required = false) String article,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String brand,
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return partService.searchPartsByFilter(article, name, brand, pageable).stream().toList();
     }
 
     @Operation(
@@ -201,7 +298,7 @@ public class PartSearchRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "Part not found",
+                                              "error": "Part not found"
                                             }
                                             """
                             )
@@ -209,7 +306,7 @@ public class PartSearchRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
-    @GetMapping("/exact/article/{article}")
+    @GetMapping("/exact/article")
     @JsonView(Views.PartView.Get.class)
     public Part getByArticle(
             @Parameter(
@@ -217,15 +314,21 @@ public class PartSearchRestController {
                     required = true,
                     example = "2405947"
             )
-            @PathVariable String article) {
+            @RequestParam String article) {
         return iPartRepository.findByArticle(article).orElseThrow(() -> new NotFoundException("Part not found"));
     }
 
     @Operation(
             summary = "Search parts by article",
-            description = "Searches parts by article containing the specified text (case-insensitive). Requires products:read permission.",
+            description = "Searches parts by article containing the specified text (case-insensitive) with pagination. Requires products:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "article", description = "Article text to search for (case-insensitive)", required = true, example = "24059"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -305,23 +408,26 @@ public class PartSearchRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
-    @GetMapping("/article/{article}")
+    @GetMapping("/article")
     @JsonView(Views.PartView.Get.class)
     public List<Part> searchByArticle(
-            @Parameter(
-                    description = "Article text to search for (case-insensitive)",
-                    required = true,
-                    example = "24059"
-            )
-            @PathVariable String article) {
-        return iPartRepository.findByArticleContainingIgnoreCase(article);
+            @RequestParam String article,
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iPartRepository.findByArticleContainingIgnoreCase(article, pageable).stream().toList();
     }
 
     @Operation(
             summary = "Get parts by exact name",
-            description = "Retrieves parts by exact name. Requires products:read permission.",
+            description = "Retrieves parts by exact name with pagination. Requires products:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "name", description = "Exact name to search for", required = true, example = "Engine Oil LL01 5W30"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -387,23 +493,26 @@ public class PartSearchRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
-    @GetMapping("/exact/name/{name}")
+    @GetMapping("/exact/name")
     @JsonView(Views.PartView.Get.class)
     public List<Part> getByName(
-            @Parameter(
-                    description = "Exact name to search for",
-                    required = true,
-                    example = "Engine Oil LL01 5W30"
-            )
-            @PathVariable String name) {
-        return iPartRepository.findByName(name);
+            @RequestParam String name,
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iPartRepository.findByName(name, pageable).stream().toList();
     }
 
     @Operation(
             summary = "Search parts by name",
-            description = "Searches parts by name containing the specified text (case-insensitive). Requires products:read permission.",
+            description = "Searches parts by name containing the specified text (case-insensitive) with pagination. Requires products:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "name", description = "Name text to search for (case-insensitive)", required = true, example = "engine oil"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -483,23 +592,26 @@ public class PartSearchRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
-    @GetMapping("/name/{name}")
+    @GetMapping("/name")
     @JsonView(Views.PartView.Get.class)
     public List<Part> searchByName(
-            @Parameter(
-                    description = "Name text to search for (case-insensitive)",
-                    required = true,
-                    example = "engine oil"
-            )
-            @PathVariable String name) {
-        return iPartRepository.findByNameContainingIgnoreCase(name);
+            @RequestParam String name,
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iPartRepository.findByNameContainingIgnoreCase(name, pageable).stream().toList();
     }
 
     @Operation(
             summary = "Get parts by exact brand",
-            description = "Retrieves parts by exact brand name. Requires products:read permission.",
+            description = "Retrieves parts by exact brand name with pagination. Requires products:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "brand", description = "Exact brand name to search for", required = true, example = "rolls royce"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -579,23 +691,26 @@ public class PartSearchRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
-    @GetMapping("/exact/brand/{brand}")
+    @GetMapping("/exact/brand")
     @JsonView(Views.PartView.Get.class)
     public List<Part> getByBrand(
-            @Parameter(
-                    description = "Exact brand name to search for",
-                    required = true,
-                    example = "rolls royce"
-            )
-            @PathVariable String brand) {
-        return iPartRepository.findByBrand(brand);
+            @RequestParam String brand,
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iPartRepository.findByBrand(brand, pageable).stream().toList();
     }
 
     @Operation(
             summary = "Search parts by brand",
-            description = "Searches parts by brand containing the specified text (case-insensitive). Requires products:read permission.",
+            description = "Searches parts by brand containing the specified text (case-insensitive) with pagination. Requires products:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "brand", description = "Brand text to search for (case-insensitive)", required = true, example = "roll"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -675,15 +790,12 @@ public class PartSearchRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
-    @GetMapping("/brand/{brand}")
+    @GetMapping("/brand")
     @JsonView(Views.PartView.Get.class)
     public List<Part> searchByBrand(
-            @Parameter(
-                    description = "Brand text to search for (case-insensitive)",
-                    required = true,
-                    example = "roll"
-            )
-            @PathVariable String brand) {
-        return iPartRepository.findByBrandContainingIgnoreCase(brand);
+            @RequestParam String brand,
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iPartRepository.findByBrandContainingIgnoreCase(brand, pageable).stream().toList();
     }
 }

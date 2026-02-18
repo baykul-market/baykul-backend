@@ -8,6 +8,7 @@ import by.baykulbackend.services.user.RefreshTokenService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -17,6 +18,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,6 +43,11 @@ public class RefreshTokenRestController {
             description = "Retrieves all refresh tokens from the system. Requires users:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -112,8 +121,10 @@ public class RefreshTokenRestController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.RefreshTokenFullView.class)
-    public List<RefreshToken> getAll() {
-        return iRefreshTokenRepository.findAll();
+    public List<RefreshToken> getAll(
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iRefreshTokenRepository.findAll(pageable).stream().toList();
     }
 
     @Operation(
@@ -187,14 +198,14 @@ public class RefreshTokenRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "Refresh token not found",
+                                              "error": "Refresh token not found"
                                             }
                                             """
                             )
                     )
             )
     })
-    @GetMapping("/{id}")
+    @GetMapping("/id")
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.RefreshTokenFullView.class)
     public RefreshToken getOne(
@@ -203,7 +214,7 @@ public class RefreshTokenRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return iRefreshTokenRepository.findById(id).orElseThrow(() -> new NotFoundException("Refresh token not found"));
     }
 
@@ -298,7 +309,7 @@ public class RefreshTokenRestController {
                     )
             )
     })
-    @GetMapping("/user/{id}")
+    @GetMapping("/user")
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.RefreshTokenView.Get.class)
     public List<RefreshToken> getUserRefTokensByUserId(
@@ -307,8 +318,8 @@ public class RefreshTokenRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
-            @PathVariable UUID id) {
-        return refreshTokenService.findUserRefTokensByUserId(id);
+            @RequestParam UUID userId) {
+        return refreshTokenService.findUserRefTokensByUserId(userId);
     }
 
     @Operation(
@@ -399,7 +410,7 @@ public class RefreshTokenRestController {
                     )
             )
     })
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/id")
     @PreAuthorize("hasAnyAuthority('users:read')")
     public ResponseEntity<?> delete(
             @Parameter(
@@ -407,7 +418,7 @@ public class RefreshTokenRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return refreshTokenService.deleteById(id);
     }
 }

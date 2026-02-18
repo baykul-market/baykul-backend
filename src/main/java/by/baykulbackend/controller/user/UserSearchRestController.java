@@ -16,13 +16,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameters;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -36,10 +37,16 @@ public class UserSearchRestController {
 
     @Operation(
             summary = "Search users",
-            description = "Searches users by login, email, or phone number containing the specified text. " +
+            description = "Searches users by login, email, or phone number containing the specified text with pagination. " +
                     "Requires users:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "text", description = "Text to search for in login, email, or phone number", required = true, example = "john"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -51,25 +58,25 @@ public class UserSearchRestController {
                                     name = "Search results example",
                                     summary = "Search results",
                                     value = """
-                                            [
-                                              {
-                                                "id": "123e4567-e89b-12d3-a456-426614174001",
-                                                "createdTs": "2024-01-15T10:30:00",
-                                                "updatedTs": "2024-01-20T14:45:30",
-                                                "login": "john_doe",
-                                                "email": "john.doe@example.com",
-                                                "phoneNumber": "+375291234567",
-                                                "role": "USER",
-                                                "blocked": false,
-                                                "profile": {
-                                                  "id": "123e4567-e89b-12d3-a456-426614174010",
-                                                  "surname": "Doe",
-                                                  "name": "John",
-                                                  "patronymic": "Michael"
-                                                }
-                                              }
-                                            ]
-                                            """
+                                        [
+                                          {
+                                            "id": "123e4567-e89b-12d3-a456-426614174001",
+                                            "createdTs": "2024-01-15T10:30:00",
+                                            "updatedTs": "2024-01-20T14:45:30",
+                                            "login": "john_doe",
+                                            "email": "john.doe@example.com",
+                                            "phoneNumber": "+375291234567",
+                                            "role": "USER",
+                                            "blocked": false,
+                                            "profile": {
+                                              "id": "123e4567-e89b-12d3-a456-426614174010",
+                                              "surname": "Doe",
+                                              "name": "John",
+                                              "patronymic": "Michael"
+                                            }
+                                          }
+                                        ]
+                                        """
                             )
                     )
             ),
@@ -108,15 +115,12 @@ public class UserSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserView.Get.class)
-    @GetMapping("/search/{text}")
+    @GetMapping
     public List<User> search(
-            @Parameter(
-                    description = "Text to search for in login, email, or phone number",
-                    required = true,
-                    example = "john"
-            )
-            @PathVariable String text) {
-        return userService.searchUser(text);
+            @RequestParam(required = false, defaultValue = "") String text,
+            @PageableDefault(size = 20, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return userService.searchUser(text, pageable).stream().toList();
     }
 
     @Operation(
@@ -197,7 +201,7 @@ public class UserSearchRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "User not found",
+                                              "error": "User not found"
                                             }
                                             """
                             )
@@ -206,23 +210,29 @@ public class UserSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserView.Get.class)
-    @GetMapping("/exact/login/{login}")
+    @GetMapping("/exact/login")
     public User getByLogin(
             @Parameter(
                     description = "Login text to search for",
                     required = true,
                     example = "john"
             )
-            @PathVariable String login) {
+            @RequestParam String login) {
         return iUserRepository.findByLogin(login).orElseThrow(() -> new NotFoundException("User not found"));
     }
 
     @Operation(
             summary = "Search users by login",
-            description = "Searches users by login containing the specified text (case-insensitive). " +
+            description = "Searches users by login containing the specified text (case-insensitive) with pagination. " +
                     "Requires users:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "login", description = "Login text to search for (case-insensitive)", required = true, example = "john"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -291,15 +301,12 @@ public class UserSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserView.Get.class)
-    @GetMapping("/search/login/{login}")
+    @GetMapping("/login")
     public List<User> searchByLogin(
-            @Parameter(
-                    description = "Login text to search for (case-insensitive)",
-                    required = true,
-                    example = "john"
-            )
-            @PathVariable String login) {
-        return iUserRepository.findByLoginContainingIgnoreCase(login);
+            @RequestParam String login,
+            @PageableDefault(size = 20, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iUserRepository.findByLoginContainingIgnoreCase(login, pageable).stream().toList();
     }
 
     @Operation(
@@ -380,7 +387,7 @@ public class UserSearchRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "User not found",
+                                              "error": "User not found"
                                             }
                                             """
                             )
@@ -389,23 +396,29 @@ public class UserSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserView.Get.class)
-    @GetMapping("/exact/email/{email}")
+    @GetMapping("/exact/email")
     public User getByEmail(
             @Parameter(
                     description = "Email text to search for",
                     required = true,
                     example = "john.doe@example.com"
             )
-            @PathVariable String email) {
+            @RequestParam String email) {
         return iUserRepository.findByEmail(email).orElseThrow(() -> new NotFoundException("User not found"));
     }
 
     @Operation(
             summary = "Search users by email",
-            description = "Searches users by email containing the specified text (case-insensitive). " +
+            description = "Searches users by email containing the specified text (case-insensitive) with pagination. " +
                     "Requires users:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "email", description = "Email text to search for (case-insensitive)", required = true, example = "example.com"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -474,15 +487,12 @@ public class UserSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserView.Get.class)
-    @GetMapping("/search/email/{email}")
+    @GetMapping("/email")
     public List<User> searchByEmail(
-            @Parameter(
-                    description = "Email text to search for (case-insensitive)",
-                    required = true,
-                    example = "example.com"
-            )
-            @PathVariable String email) {
-        return iUserRepository.findByEmailContainingIgnoreCase(email);
+            @RequestParam String email,
+            @PageableDefault(size = 20, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iUserRepository.findByEmailContainingIgnoreCase(email, pageable).stream().toList();
     }
 
     @Operation(
@@ -563,7 +573,7 @@ public class UserSearchRestController {
                                     name = "Not found example",
                                     value = """
                                             {
-                                              "error": "User not found",
+                                              "error": "User not found"
                                             }
                                             """
                             )
@@ -572,23 +582,29 @@ public class UserSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserView.Get.class)
-    @GetMapping("/exact/phoneNumber/{phoneNumber}")
+    @GetMapping("/exact/phoneNumber")
     public User getByPhoneNumber(
             @Parameter(
                     description = "Phone number text to search for",
                     required = true,
                     example = "+375291234567"
             )
-            @PathVariable String phoneNumber) {
+            @RequestParam String phoneNumber) {
         return iUserRepository.findByPhoneNumber(phoneNumber).orElseThrow(() -> new NotFoundException("User not found"));
     }
 
     @Operation(
             summary = "Search users by phone number",
-            description = "Searches users by phone number containing the specified text. " +
+            description = "Searches users by phone number containing the specified text with pagination. " +
                     "Requires users:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "phoneNumber", description = "Phone number text to search for", required = true, example = "291234567"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -657,14 +673,11 @@ public class UserSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('users:write')")
     @JsonView(Views.UserView.Get.class)
-    @GetMapping("/search/phoneNumber/{phoneNumber}")
+    @GetMapping("/phoneNumber")
     public List<User> searchByPhoneNumber(
-            @Parameter(
-                    description = "Phone number text to search for",
-                    required = true,
-                    example = "291234567"
-            )
-            @PathVariable String phoneNumber) {
-        return iUserRepository.findByPhoneNumberContaining(phoneNumber);
+            @RequestParam String phoneNumber,
+            @PageableDefault(size = 20, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iUserRepository.findByPhoneNumberContaining(phoneNumber, pageable).stream().toList();
     }
 }

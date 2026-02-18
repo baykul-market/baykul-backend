@@ -9,6 +9,7 @@ import by.baykulbackend.services.user.AuthService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,6 +18,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -36,9 +40,14 @@ public class UserOrderRestController {
 
     @Operation(
             summary = "Get user's orders",
-            description = "Retrieves all orders of the currently authenticated user. Requires orders:read permission.",
+            description = "Retrieves all orders of the currently authenticated user with pagination. Requires orders:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
+    @Parameters({
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
@@ -123,8 +132,13 @@ public class UserOrderRestController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('orders:read')")
     @JsonView(Views.OrderFullView.class)
-    public List<Order> getAll() {
-        return iOrderRepository.findByUserLogin(authService.getAuthInfo().getPrincipal().toString());
+    public List<Order> getAll(
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return iOrderRepository.findByUserLogin(
+                authService.getAuthInfo().getPrincipal().toString(),
+                pageable
+        ).stream().toList();
     }
 
     @Operation(
@@ -227,7 +241,7 @@ public class UserOrderRestController {
                     )
             )
     })
-    @GetMapping("/{id}")
+    @GetMapping("/id")
     @PreAuthorize("hasAnyAuthority('orders:read')")
     @JsonView(Views.OrderFullView.class)
     public Order getOne(
@@ -236,7 +250,7 @@ public class UserOrderRestController {
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
-            @PathVariable UUID id) {
+            @RequestParam UUID id) {
         return iOrderRepository.findByUserLoginAndId(authService.getAuthInfo().getPrincipal().toString(), id)
                 .orElseThrow(() -> new NotFoundException("Order not found"));
     }

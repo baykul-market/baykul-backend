@@ -2,6 +2,8 @@ package by.baykulbackend.database.repository.order;
 
 import by.baykulbackend.database.dao.order.Order;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -13,7 +15,7 @@ import java.util.UUID;
 
 public interface IOrderRepository extends JpaRepository<Order, UUID> {
     List<Order> findByUserId(UUID userId);
-    List<Order> findByUserLogin(String userLogin);
+    Page<Order> findByUserLogin(String userLogin, Pageable pageable);
 
     Optional<Order> findByUserLoginAndId(final String userLogin, final UUID id);
 

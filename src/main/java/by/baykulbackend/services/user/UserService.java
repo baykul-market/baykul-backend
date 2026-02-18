@@ -2,6 +2,7 @@ package by.baykulbackend.services.user;
 
 import by.baykulbackend.config.PasswordEncoderConfig;
 import by.baykulbackend.database.dao.balance.Balance;
+import by.baykulbackend.database.dao.cart.Cart;
 import by.baykulbackend.database.dao.user.Profile;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.model.Role;
@@ -12,6 +13,9 @@ import by.baykulbackend.utils.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -66,6 +70,10 @@ public class UserService {
         balance.setUser(user);
         balance.setAccount(new BigDecimal("0.00"));
         user.setBalance(balance);
+
+        Cart cart = new Cart();
+        cart.setUser(user);
+        user.setCart(cart);
 
         iUserRepository.save(user);
         response.put("create_user", "true");
@@ -202,20 +210,42 @@ public class UserService {
     }
 
     /**
-     * Searches for users by login, email, or phone number containing the given text.
-     * Performs case-insensitive search for login and email, exact match for phone number.
+     * Searches for users by login, email, or phone number containing the given text with pagination.
+     * Performs case-insensitive search for login and email, case-insensitive search for phone number.
      * Returns distinct users to avoid duplicates.
      *
      * @param text the search text to match against user attributes
-     * @return List of matching User objects
+     * @param pageable pagination and sorting parameters
+     * @return Page of matching User objects
      */
-    public List<User> searchUser(String text) {
-        List<User> result = new ArrayList<>();
-        result.addAll(iUserRepository.findByLoginContainingIgnoreCase(text));
-        result.addAll(iUserRepository.findByEmailContainingIgnoreCase(text));
-        result.addAll(iUserRepository.findByPhoneNumberContaining(text));
+    public Page<User> searchUser(String text, Pageable pageable) {
+        if (text == null || text.isEmpty()) {
+            return Page.empty(pageable);
+        }
 
-        return result.stream().distinct().collect(Collectors.toList());
+        Set<User> resultSet = new LinkedHashSet<>();
+
+        // Поиск по логину
+        resultSet.addAll(iUserRepository.findByLoginContainingIgnoreCase(text, Pageable.unpaged()).getContent());
+
+        // Поиск по email
+        resultSet.addAll(iUserRepository.findByEmailContainingIgnoreCase(text, Pageable.unpaged()).getContent());
+
+        // Поиск по телефону
+        resultSet.addAll(iUserRepository.findByPhoneNumberContaining(text, Pageable.unpaged()).getContent());
+
+        List<User> content = new ArrayList<>(resultSet);
+
+        // Ручная пагинация
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), content.size());
+
+        if (start > content.size()) {
+            return new PageImpl<>(new ArrayList<>(), pageable, content.size());
+        }
+
+        List<User> pageContent = content.subList(start, end);
+        return new PageImpl<>(pageContent, pageable, content.size());
     }
 
     /**
