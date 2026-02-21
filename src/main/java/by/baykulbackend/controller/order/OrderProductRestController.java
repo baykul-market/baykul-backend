@@ -18,6 +18,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -26,6 +28,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -119,6 +122,79 @@ public class OrderProductRestController {
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return iOrderProductRepository.findAllByBillIsNullAndStatus(BoxStatus.ORDERED, pageable).stream().toList();
+    }
+
+    @Operation(
+            summary = "Search order products",
+            description = "Search for order products by number or status. If number is provided, status is ignored. If no parameters are provided, returns all order products. Requires orders:read or orders:write permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @Parameters({
+            @Parameter(name = "number", description = "Order product number to search for (exact match)", example = "100001"),
+            @Parameter(name = "status", description = "Order product status to filter by", example = "IN_WAREHOUSE"),
+            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
+            @Parameter(name = "size", description = "Page size (default: 20)", example = "20"),
+            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
+    })
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "List of order products retrieved successfully",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            array = @ArraySchema(schema = @Schema(implementation = Views.OrderProductFullView.class))
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized - JWT token missing or invalid",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "Unauthorized example",
+                                    value = """
+                                        {
+                                          "error": "Unauthorized",
+                                          "message": "Full authentication is required to access this resource"
+                                        }
+                                        """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - insufficient permissions",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "Forbidden example",
+                                    value = """
+                                        {
+                                          "error": "Forbidden",
+                                          "message": "Access Denied"
+                                        }
+                                        """
+                            )
+                    )
+            )
+    })
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyAuthority('orders:write')")
+    @JsonView(Views.OrderProductFullView.class)
+    public Page<OrderProduct> search(
+            @Parameter(hidden = true) @RequestParam(required = false) Long number,
+            @Parameter(hidden = true) @RequestParam(required = false) BoxStatus status,
+            @PageableDefault(size = 20, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        if (number != null) {
+            return iOrderProductRepository.findByNumber(number)
+                    .map(op -> (Page<OrderProduct>) new PageImpl<>(List.of(op)))
+                    .orElse(new PageImpl<>(Collections.emptyList()));
+        } else if (status != null) {
+            return iOrderProductRepository.findAllByStatus(status, pageable);
+        } else {
+            return iOrderProductRepository.findAll(pageable);
+        }
     }
 
     @Operation(

@@ -10,6 +10,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface IOrderProductRepository extends JpaRepository<OrderProduct, UUID> {
+    Optional<OrderProduct> findByNumber(Long number);
+    Page<OrderProduct> findAllByStatus(BoxStatus status, Pageable pageable);
     boolean existsByNumber(Long number);
     Page<OrderProduct> findAllByBillIsNullAndStatus(BoxStatus status, Pageable pageable);
     Optional<OrderProduct> findByBillIsNullAndIdAndStatus(UUID id, BoxStatus status);
