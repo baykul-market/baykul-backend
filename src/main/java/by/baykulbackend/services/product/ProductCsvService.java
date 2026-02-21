@@ -55,7 +55,14 @@ public class ProductCsvService {
      */
     @Transactional
     public ResponseEntity<?> parseParts(ProductDto productDto) {
+        long processStartTime = System.currentTimeMillis();
+        String fileName = productDto.getCsvFile().getOriginalFilename();
+        log.info("Starting CSV processing for file: {}", fileName);
+
         Map<String, String> response = new HashMap<>();
+        int totalLinesProcessed = 0;
+        int totalPartsSaved = 0;
+
         try (BufferedReader br = new BufferedReader(new InputStreamReader(productDto.getCsvFile().getInputStream(), StandardCharsets.UTF_8));
              CSVReader csvReader = new CSVReaderBuilder(br)
                      .withCSVParser(new CSVParserBuilder().withSeparator(SEPARATOR).withIgnoreQuotations(true).withIgnoreLeadingWhiteSpace(true).build())
@@ -70,21 +77,28 @@ public class ProductCsvService {
             while ((line = csvReader.readNext()) != null) {
                 lines.add(line);
                 if (lines.size() >= CHUNK_SIZE) {
-                    processChunk(lines, response, lineNumber - lines.size());
+                    totalPartsSaved += processChunk(lines, response, lineNumber - lines.size(), chunkNumber);
+                    totalLinesProcessed += lines.size();
                     lines.clear();
-                    log.info("Processed chunk #{}", chunkNumber++);
+                    chunkNumber++;
                 }
                 lineNumber++;
             }
             if (!lines.isEmpty()) {
-                processChunk(lines, response, lineNumber - lines.size());
-                log.info("Processed final chunk.");
+                totalPartsSaved += processChunk(lines, response, lineNumber - lines.size(), chunkNumber);
+                totalLinesProcessed += lines.size();
             }
+
         } catch (IOException | CsvValidationException e) {
-            log.error("Error while parsing CSV file: {}", e.getMessage());
+            log.error("Error while parsing CSV file '{}': {}", fileName, e.getMessage(), e);
             response.put("error", "Error while parsing CSV file: " + e.getMessage());
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
+
+        long totalTimeMs = System.currentTimeMillis() - processStartTime;
+        log.info("CSV processing completed in {} ms. Total lines read: {}. Successfully saved: {}. Validation errors: {}",
+                totalTimeMs, totalLinesProcessed, totalPartsSaved, response.size());
+
         response.put("status", "CSV processing finished.");
         return ResponseEntity.ok(response);
     }
@@ -97,12 +111,24 @@ public class ProductCsvService {
      * @param response        The response map to populate with any validation errors.
      * @param startLineNumber The starting line number in the original CSV (for accurate error reporting).
      */
-    private void processChunk(List<String[]> lines, Map<String, String> response, int startLineNumber) {
+    private int processChunk(List<String[]> lines, Map<String, String> response, int startLineNumber, int chunkNumber) {
+        long chunkStartTime = System.currentTimeMillis();
+
+        // Phase 1: Extract articles from the chunk
+        long startExtract = System.currentTimeMillis();
         Set<String> articlesInChunk = lines.stream().map(line -> line[0]).collect(Collectors.toSet());
+        log.trace("Chunk #{} - Phase 1: Extracted {} articles in {} ms", chunkNumber, articlesInChunk.size(), (System.currentTimeMillis() - startExtract));
+
+        // Phase 2: Fetch existing articles from DB
+        long startDbFetch = System.currentTimeMillis();
         Set<String> existingArticles = iPartRepository.findAllByArticleIn(articlesInChunk);
+        log.trace("Chunk #{} - Phase 2: Fetched {} existing articles from DB in {} ms", chunkNumber, existingArticles.size(), (System.currentTimeMillis() - startDbFetch));
+
         Set<String> uniqueArticlesInChunk = new HashSet<>();
         List<Part> partsToSave = new ArrayList<>();
 
+        // Phase 3: Validate and parse lines
+        long startValidation = System.currentTimeMillis();
         int currentLineNumber = startLineNumber;
         for (String[] line : lines) {
             if (!isInvalidLine(line, response, currentLineNumber, existingArticles, uniqueArticlesInChunk)) {
@@ -112,9 +138,19 @@ public class ProductCsvService {
             }
             currentLineNumber++;
         }
+        log.trace("Chunk #{} - Phase 3: Validated and parsed {} lines in {} ms", chunkNumber, lines.size(), (System.currentTimeMillis() - startValidation));
+
+        // Phase 4: Save to Database
         if (!partsToSave.isEmpty()) {
+            long startSave = System.currentTimeMillis();
             iPartRepository.saveAll(partsToSave);
+            log.trace("Chunk #{} - Phase 4: Saved {} parts to DB using saveAll in {} ms", chunkNumber, partsToSave.size(), (System.currentTimeMillis() - startSave));
         }
+
+        long chunkTotalTime = System.currentTimeMillis() - chunkStartTime;
+        log.debug("Chunk #{}: Processed {} lines, saved {} parts in {} ms", chunkNumber, lines.size(), partsToSave.size(), chunkTotalTime);
+
+        return partsToSave.size();
     }
 
     /**
@@ -161,8 +197,13 @@ public class ProductCsvService {
                 .or(() -> validateNumericValues(line))
                 .or(() -> validateDecimalValues(line));
 
-        error.ifPresent(errorMessage -> response.put("error_row_" + lineNumber, errorMessage));
-        return error.isPresent();
+        if (error.isPresent()) {
+            String errorMessage = error.get();
+            response.put("error_row_" + lineNumber, errorMessage);
+            log.trace("Validation failed at line {}: {}", lineNumber, errorMessage);
+            return true;
+        }
+        return false;
     }
 
     /**
