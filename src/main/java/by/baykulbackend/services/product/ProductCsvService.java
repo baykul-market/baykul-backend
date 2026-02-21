@@ -31,6 +31,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Service responsible for parsing and processing bulk product imports via CSV.
+ * It handles chunked reading, validation, and batch saving to optimise performance
+ * and memory usage for large datasets.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -41,6 +46,13 @@ public class ProductCsvService {
 
     private final IPartRepository iPartRepository;
 
+    /**
+     * The main entry point for processing the uploaded CSV file containing product parts.
+     * Reads the file line-by-line and processes it in memory-efficient chunks.
+     *
+     * @param productDto Data Transfer Object containing the multipart CSV file.
+     * @return A {@link ResponseEntity} containing a map of statuses and any row-specific validation errors.
+     */
     @Transactional
     public ResponseEntity<?> parseParts(ProductDto productDto) {
         Map<String, String> response = new HashMap<>();
@@ -77,6 +89,14 @@ public class ProductCsvService {
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Processes a single chunk of CSV lines. Extracts articles for bulk database validation,
+     * filters out invalid lines, parses the valid ones into entities, and saves them in a batch.
+     *
+     * @param lines           The list of CSV lines in the current chunk.
+     * @param response        The response map to populate with any validation errors.
+     * @param startLineNumber The starting line number in the original CSV (for accurate error reporting).
+     */
     private void processChunk(List<String[]> lines, Map<String, String> response, int startLineNumber) {
         Set<String> articlesInChunk = lines.stream().map(line -> line[0]).collect(Collectors.toSet());
         Set<String> existingArticles = iPartRepository.findAllByArticleIn(articlesInChunk);
@@ -97,6 +117,13 @@ public class ProductCsvService {
         }
     }
 
+    /**
+     * Maps a valid array of CSV string values to a new {@link Part} entity.
+     * Handles type conversions, default values, and standardises decimal formatting.
+     *
+     * @param line A single parsed row from the CSV representing a product part.
+     * @return A fully populated {@link Part} entity ready to be saved.
+     */
     private Part parsePartFromLine(String[] line) {
         Part part = new Part();
         part.setArticle(line[0]);
@@ -115,6 +142,17 @@ public class ProductCsvService {
         return part;
     }
 
+    /**
+     * Orchestrates all validation rules for a single CSV line. If the line is invalid,
+     * the specific error is appended to the response map using the row's line number.
+     *
+     * @param line                  The CSV line to validate.
+     * @param response              The map-collecting validation errors.
+     * @param lineNumber            The actual line number of the row in the CSV file.
+     * @param existingArticles      A pre-fetched set of articles that already exist in the database.
+     * @param uniqueArticlesInChunk A set tracking articles that have already been processed in the current chunk.
+     * @return {@code true} if the line violates any validation rule; {@code false} if it is valid.
+     */
     private boolean isInvalidLine(String[] line, Map<String, String> response, int lineNumber, Set<String> existingArticles, Set<String> uniqueArticlesInChunk) {
         Optional<String> error = validateStructure(line)
                 .or(() -> validateRequiredFields(line))
@@ -127,10 +165,22 @@ public class ProductCsvService {
         return error.isPresent();
     }
 
+    /**
+     * Validates that the CSV row contains the exact expected number of columns.
+     *
+     * @param line The CSV line to validate.
+     * @return An {@link Optional} containing an error message if invalid, or empty if valid.
+     */
     private Optional<String> validateStructure(String[] line) {
         return line.length != EXPECTED_COLUMNS ? Optional.of("Incorrect number of columns") : Optional.empty();
     }
 
+    /**
+     * Validates that mandatory fields (Article, Name, Price, and Brand) are not blank.
+     *
+     * @param line The CSV line to validate.
+     * @return An {@link Optional} containing an error message if any required field is empty, or empty if valid.
+     */
     private Optional<String> validateRequiredFields(String[] line) {
         if (StringUtils.isAnyEmpty(line[0], line[1], line[6], line[7])) {
             return Optional.of("Required fields are missing. Article, name, price, and brand must be provided.");
@@ -138,6 +188,15 @@ public class ProductCsvService {
         return Optional.empty();
     }
 
+    /**
+     * Validates that the article number is entirely unique—both against the database
+     * and against previously processed lines in the current chunk.
+     *
+     * @param article               The article identifier to check.
+     * @param existingArticles      Articles pre-fetched from the database.
+     * @param uniqueArticlesInChunk Articles already processed in this chunk.
+     * @return An {@link Optional} containing an error message if a duplicate is found, or empty if unique.
+     */
     private Optional<String> validateUniqueness(String article, Set<String> existingArticles, Set<String> uniqueArticlesInChunk) {
         if (existingArticles.contains(article) || uniqueArticlesInChunk.contains(article)) {
             return Optional.of("Duplicate article " + article);
@@ -145,6 +204,12 @@ public class ProductCsvService {
         return Optional.empty();
     }
 
+    /**
+     * Validates that the string fields do not exceed maximum database column lengths.
+     *
+     * @param line The CSV line to validate.
+     * @return An {@link Optional} containing an error message if any string is too long, or empty if valid.
+     */
     private Optional<String> validateFieldLengths(String[] line) {
         if (line[0].length() > 50) return Optional.of("Article exceeds 50 characters.");
         if (line[1].length() > 255) return Optional.of("Name exceeds 255 characters.");
@@ -152,6 +217,13 @@ public class ProductCsvService {
         return Optional.empty();
     }
 
+    /**
+     * Validates the numeric constraints for Weight, Min Count, and Storage Count fields.
+     * Ensures they can be parsed correctly and do not contain forbidden negative values.
+     *
+     * @param line The CSV line to validate.
+     * @return An {@link Optional} containing an error message if constraints are violated, or empty if valid.
+     */
     private Optional<String> validateNumericValues(String[] line) {
         try {
             if (StringUtils.isNotEmpty(line[2]) && Double.parseDouble(line[2].replace(',', '.')) < 0) {
@@ -169,6 +241,13 @@ public class ProductCsvService {
         return Optional.empty();
     }
 
+    /**
+     * Validates the format and constraints of BigDecimal fields (Return Part and Price).
+     * Ensures a proper scale (max 2 decimal places) and prevents negative pricing.
+     *
+     * @param line The CSV line to validate.
+     * @return An {@link Optional} containing an error message if format or value constraints are violated, or empty if valid.
+     */
     private Optional<String> validateDecimalValues(String[] line) {
         try {
             if (StringUtils.isNotEmpty(line[5])) {
