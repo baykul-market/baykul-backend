@@ -4,7 +4,6 @@ import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.security.Views;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
-import by.baykulbackend.services.user.AuthService;
 import by.baykulbackend.services.user.UserService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,7 +37,6 @@ import java.util.UUID;
 public class UserRestController {
     private final IUserRepository iUserRepository;
     private final UserService userService;
-    private final AuthService authService;
 
     @Operation(
             summary = "Get all users",

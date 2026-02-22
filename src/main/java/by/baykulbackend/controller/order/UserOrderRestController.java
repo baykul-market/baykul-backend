@@ -1,9 +1,10 @@
 package by.baykulbackend.controller.order;
 
+import by.baykulbackend.database.dto.order.CreateOrderRequestDto;
 import by.baykulbackend.database.dao.order.Order;
 import by.baykulbackend.database.dto.security.Views;
-import by.baykulbackend.database.repository.order.IOrderRepository;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.database.repository.order.IOrderRepository;
 import by.baykulbackend.services.order.OrderService;
 import by.baykulbackend.services.user.AuthService;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -366,7 +367,52 @@ public class UserOrderRestController {
     })
     @PostMapping("/create")
     @PreAuthorize("hasAnyAuthority('orders:read')")
-    public ResponseEntity<?> create() {
-        return orderService.createOrderFromCart();
+    public ResponseEntity<?> create(@RequestBody CreateOrderRequestDto request) {
+        return orderService.createOrderFromCart(request);
+    }
+
+    @Operation(
+            summary = "Pay for an existing order",
+            description = "Processes payment for an order that was created with 'payLater' option. Requires orders:read permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Order paid successfully",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "Pay order success example",
+                                    value = """
+                                            {
+                                              "pay_order": "true"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Bad request - order not found, not owned by user, or already paid",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "Bad request example",
+                                    value = """
+                                            {
+                                              "error": "Order is already paid or processed"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    @PostMapping("/{id}/pay")
+    @PreAuthorize("hasAnyAuthority('orders:read')")
+    public ResponseEntity<?> payForOrder(
+            @Parameter(description = "UUID of the order to pay for", required = true)
+            @PathVariable UUID id) {
+        return orderService.payForOrder(id);
     }
 }
