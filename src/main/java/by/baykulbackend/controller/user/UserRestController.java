@@ -41,7 +41,7 @@ public class UserRestController {
     @Operation(
             summary = "Get all users",
             description = "Retrieves all users from the system with their refresh tokens. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -131,7 +131,7 @@ public class UserRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping
     public List<User> getAll(
@@ -143,7 +143,7 @@ public class UserRestController {
     @Operation(
             summary = "Get user by ID",
             description = "Retrieves a specific user by UUID with their refresh tokens. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -237,7 +237,7 @@ public class UserRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserFullView.class)
     @GetMapping("/id")
     public User getOne(

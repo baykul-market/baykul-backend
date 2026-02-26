@@ -36,7 +36,7 @@ public class UserCartRestController {
 
     @Operation(
             summary = "Get user's cart",
-            description = "Retrieves the cart of the currently authenticated user. Requires carts:read permission.",
+            description = "Retrieves the cart of the currently authenticated user. Requires my-cart:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -130,7 +130,7 @@ public class UserCartRestController {
             )
     })
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('carts:read')")
+    @PreAuthorize("hasAnyAuthority('my-cart:read')")
     @JsonView(Views.CartFullView.class)
     public Cart get() {
         return iCartRepository.findByUserLogin(authService.getAuthInfo().getPrincipal().toString())
@@ -139,7 +139,7 @@ public class UserCartRestController {
 
     @Operation(
             summary = "Add part to user's cart",
-            description = "Adds a part to the currently authenticated user's cart. Requires carts:read permission.",
+            description = "Adds a part to the currently authenticated user's cart. Requires my-cart:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -227,7 +227,7 @@ public class UserCartRestController {
             )
     })
     @PostMapping("/add")
-    @PreAuthorize("hasAnyAuthority('carts:read')")
+    @PreAuthorize("hasAnyAuthority('my-cart:write')")
     public ResponseEntity<?> addPart(
             @Parameter(
                     description = "UUID of the part to add to cart",
@@ -241,7 +241,7 @@ public class UserCartRestController {
     @Operation(
             summary = "Update cart product in user's cart",
             description = "Updates a cart product in the currently authenticated user's cart. " +
-                    "Requires carts:read permission.",
+                    "Requires my-cart:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Cart product data to update",
@@ -343,7 +343,7 @@ public class UserCartRestController {
             )
     })
     @PatchMapping("/update")
-    @PreAuthorize("hasAnyAuthority('carts:read')")
+    @PreAuthorize("hasAnyAuthority('my-cart:write')")
     public ResponseEntity<?> updateCartProduct(
             @Parameter(
                     description = "UUID of the cart product to update",
@@ -358,7 +358,7 @@ public class UserCartRestController {
     @Operation(
             summary = "Clear user's cart",
             description = "Removes all cart products from the currently authenticated user's cart. " +
-                    "Requires carts:read permission.",
+                    "Requires my-cart:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -427,14 +427,15 @@ public class UserCartRestController {
             )
     })
     @PostMapping("/clear")
-    @PreAuthorize("hasAnyAuthority('carts:read')")
+    @PreAuthorize("hasAnyAuthority('my-cart:write')")
     public ResponseEntity<?> clearCart() {
         return cartService.clearUsersCart();
     }
 
     @Operation(
             summary = "Delete cart product from user's cart",
-            description = "Removes a specific cart product from the currently authenticated user's cart. Requires carts:read permission.",
+            description = "Removes a specific cart product from the currently authenticated user's cart. " +
+                    "Requires my-cart:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -504,7 +505,7 @@ public class UserCartRestController {
             )
     })
     @DeleteMapping("/product")
-    @PreAuthorize("hasAnyAuthority('carts:read')")
+    @PreAuthorize("hasAnyAuthority('my-cart:write')")
     public ResponseEntity<?> deleteCartProduct(
             @Parameter(
                     description = "UUID of the cart product to delete",

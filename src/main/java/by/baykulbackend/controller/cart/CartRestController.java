@@ -40,7 +40,7 @@ public class CartRestController {
 
     @Operation(
             summary = "Get all carts",
-            description = "Retrieves all carts from the system with their users. Requires carts:write permission.",
+            description = "Retrieves all carts from the system with their users. Requires all-carts:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -109,7 +109,7 @@ public class CartRestController {
             )
     })
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('carts:write')")
+    @PreAuthorize("hasAnyAuthority('all-carts:read')")
     @JsonView(Views.CartView.Get.class)
     public List<Cart> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
@@ -119,7 +119,8 @@ public class CartRestController {
 
     @Operation(
             summary = "Get cart by ID",
-            description = "Retrieves a specific cart by UUID with their user and cart products. Requires carts:write permission.",
+            description = "Retrieves a specific cart by UUID with their user and cart products. " +
+                    "Requires all-carts:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -220,7 +221,7 @@ public class CartRestController {
             )
     })
     @GetMapping("/id")
-    @PreAuthorize("hasAnyAuthority('carts:write')")
+    @PreAuthorize("hasAnyAuthority('all-carts:read')")
     @JsonView(Views.CartFullView.class)
     public Cart getOne(
             @Parameter(
@@ -234,7 +235,7 @@ public class CartRestController {
 
     @Operation(
             summary = "Add part to cart",
-            description = "Adds a part to a specific cart. Requires carts:write permission.",
+            description = "Adds a part to a specific cart. Requires all-carts:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -322,7 +323,7 @@ public class CartRestController {
             )
     })
     @PostMapping("/add")
-    @PreAuthorize("hasAnyAuthority('carts:write')")
+    @PreAuthorize("hasAnyAuthority('all-carts:write')")
     public ResponseEntity<?> addPart(
             @Parameter(
                     description = "UUID of the cart to add part to",
@@ -341,7 +342,7 @@ public class CartRestController {
 
     @Operation(
             summary = "Update cart product",
-            description = "Updates a cart product (e.g., quantity) by ID. Requires carts:write permission.",
+            description = "Updates a cart product (e.g., quantity) by ID. Requires all-carts:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Cart product data to update",
@@ -443,7 +444,7 @@ public class CartRestController {
             )
     })
     @PatchMapping("/update")
-    @PreAuthorize("hasAnyAuthority('carts:write')")
+    @PreAuthorize("hasAnyAuthority('all-carts:write')")
     public ResponseEntity<?> updateCartProduct(
             @Parameter(
                     description = "UUID of the cart product to update",
@@ -457,7 +458,7 @@ public class CartRestController {
 
     @Operation(
             summary = "Delete cart product",
-            description = "Deletes a cart product by ID. Requires carts:write permission.",
+            description = "Deletes a cart product by ID. Requires all-carts:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -526,7 +527,7 @@ public class CartRestController {
             )
     })
     @DeleteMapping("/product")
-    @PreAuthorize("hasAnyAuthority('carts:write')")
+    @PreAuthorize("hasAnyAuthority('all-carts:write')")
     public ResponseEntity<?> deleteCartProduct(
             @Parameter(
                     description = "UUID of the cart product to delete",

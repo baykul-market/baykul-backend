@@ -43,7 +43,7 @@ public class OrderProductRestController {
     @Operation(
             summary = "Get all order products without bill and with status ORDERED",
             description = "Retrieves all order products without bill and with status ORDERED from the system " +
-                    "with pagination. Requires orders:write permission.",
+                    "with pagination. Requires all-orders:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -116,7 +116,7 @@ public class OrderProductRestController {
             )
     })
     @GetMapping("/withoutBill")
-    @PreAuthorize("hasAnyAuthority('orders:write')")
+    @PreAuthorize("hasAnyAuthority('all-orders:read')")
     @JsonView(Views.OrderProductView.Get.class)
     public List<OrderProduct> getAllOrderedWithoutBill(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
@@ -126,7 +126,9 @@ public class OrderProductRestController {
 
     @Operation(
             summary = "Search order products",
-            description = "Search for order products by number or status. If number is provided, status is ignored. If no parameters are provided, returns all order products. Requires orders:read or orders:write permission.",
+            description = "Search for order products by number or status. If number is provided, status is ignored. " +
+                    "If no parameters are provided, returns all order products. " +
+                    "Requires orders:read or all-orders:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -179,7 +181,7 @@ public class OrderProductRestController {
             )
     })
     @GetMapping("/search")
-    @PreAuthorize("hasAnyAuthority('orders:write')")
+    @PreAuthorize("hasAnyAuthority('all-orders:read')")
     @JsonView(Views.OrderProductFullView.class)
     public Page<OrderProduct> search(
             @Parameter(hidden = true) @RequestParam(required = false) Long number,
@@ -200,7 +202,7 @@ public class OrderProductRestController {
     @Operation(
             summary = "Update order product",
             description = """
-                    Updates an order product. Requires orders:write permission.
+                    Updates an order product. Requires all-orders:write permission.
                     
                     **Available status transitions for BoxStatus:**
                     - From ORDERED → IN_WAREHOUSE, CANCELLED
@@ -323,7 +325,7 @@ public class OrderProductRestController {
             )
     })
     @PatchMapping
-    @PreAuthorize("hasAnyAuthority('orders:write')")
+    @PreAuthorize("hasAnyAuthority('all-orders:write')")
     public ResponseEntity<?> update(
             @Parameter(
                     description = "UUID of the order product to update",

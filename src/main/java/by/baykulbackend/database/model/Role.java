@@ -20,14 +20,29 @@ import java.util.stream.Collectors;
         enumAsRef = true
 )
 public enum Role {
-    USER(Set.of(Permission.USERS_READ, Permission.BALANCE_READ, Permission.PRODUCT_READ, Permission.CART_READ,
-            Permission.ORDER_READ)),
-    MANAGER(Set.of(Permission.USERS_READ, Permission.BALANCE_READ, Permission.BALANCE_WRITE,
-            Permission.PRODUCT_READ, Permission.PRODUCT_WRITE, Permission.CART_READ, Permission.ORDER_READ,
-            Permission.ORDER_WRITE, Permission.BILL_READ, Permission.BILL_WRITE)),
-    ADMIN(Set.of(Permission.USERS_READ, Permission.USERS_WRITE, Permission.BALANCE_READ, Permission.BALANCE_WRITE,
-            Permission.PRODUCT_READ, Permission.PRODUCT_WRITE, Permission.CART_READ, Permission.CART_WRITE,
-            Permission.ORDER_READ, Permission.ORDER_WRITE, Permission.BILL_READ, Permission.BILL_WRITE)),;
+    USER(Set.of(
+            Permission.PROFILE_READ, Permission.PROFILE_WRITE,
+            Permission.PRODUCT_READ,
+            Permission.MY_BALANCE_READ,
+            Permission.MY_CART_READ, Permission.MY_CART_WRITE,
+            Permission.MY_ORDER_READ, Permission.MY_ORDER_WRITE
+    )),
+    MANAGER(Set.of(
+            Permission.PROFILE_READ, Permission.PROFILE_WRITE, Permission.USERS_READ,
+            Permission.PRODUCT_READ, Permission.PRODUCT_WRITE,
+            Permission.MY_BALANCE_READ, Permission.ALL_BALANCE_READ, Permission.ALL_BALANCE_WRITE,
+            Permission.MY_CART_READ, Permission.MY_CART_WRITE, Permission.ALL_CART_READ,
+            Permission.MY_ORDER_READ, Permission.MY_ORDER_WRITE, Permission.ALL_ORDER_READ, Permission.ALL_ORDER_WRITE,
+            Permission.ALL_BILL_READ, Permission.ALL_BILL_WRITE
+    )),
+    ADMIN(Set.of(
+            Permission.PROFILE_READ, Permission.PROFILE_WRITE, Permission.USERS_READ, Permission.USERS_WRITE,
+            Permission.PRODUCT_READ, Permission.PRODUCT_WRITE,
+            Permission.MY_BALANCE_READ, Permission.ALL_BALANCE_READ, Permission.ALL_BALANCE_WRITE,
+            Permission.MY_CART_READ, Permission.MY_CART_WRITE, Permission.ALL_CART_READ, Permission.ALL_CART_WRITE,
+            Permission.MY_ORDER_READ, Permission.MY_ORDER_WRITE, Permission.ALL_ORDER_READ, Permission.ALL_ORDER_WRITE,
+            Permission.ALL_BILL_READ, Permission.ALL_BILL_WRITE
+    ));
 
     private final Set<Permission> permissions;
 
