@@ -80,7 +80,12 @@ public class BalanceService {
 
         switch (balanceOperation.getOperationType()) {
             case REPLENISHMENT -> newAccount = currentAccount.add(balanceOperation.getAmount());
-            case PAYMENT, WITHDRAWAL -> newAccount = currentAccount.subtract(balanceOperation.getAmount());
+            case PAYMENT, WITHDRAWAL -> {
+                if (currentAccount.compareTo(balanceOperation.getAmount()) < 0) {
+                    throw new BadRequestException("Insufficient funds");
+                }
+                newAccount = currentAccount.subtract(balanceOperation.getAmount());
+            }
             default -> {
                 log.warn("Invalid balance operation while processing balance {} -> {}",
                         balanceOperation.getOperationType(), authService.getAuthInfo().getPrincipal().toString());

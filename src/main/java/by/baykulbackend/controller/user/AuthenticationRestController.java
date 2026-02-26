@@ -1,6 +1,5 @@
 package by.baykulbackend.controller.user;
 
-import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.services.user.AuthService;
 import by.baykulbackend.database.dto.security.JwtRequest;
 import by.baykulbackend.database.dto.security.JwtResponse;
@@ -28,7 +27,6 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Authentication", description = "User authentication and token management")
 public class AuthenticationRestController {
     private final AuthService authService;
-    private final IRefreshTokenRepository iRefreshTokenRepository;
     private final RefreshTokenService refreshTokenService;
 
     @Operation(
