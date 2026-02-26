@@ -13,9 +13,33 @@ import java.util.stream.Collectors;
                       
                       **Available roles:**
                       
-                      - **USER** - Standard user with permissions: users:read, balances:read, products:read, carts:read, orders:read
-                      - **MANAGER** - Manager with permissions: users:read, balances:read/write, products:read/write, carts:read, orders:read/write, bills:read/write
-                      - **ADMIN** - Full system access
+                      - **USER** - Standard user with permissions:
+                        * Profile: read/write
+                        * Products: read
+                        * Personal balance: read
+                        * Personal cart: read/write
+                        * Personal orders: read/write
+                      
+                      - **MANAGER** - Manager with permissions:
+                        * Profile: read/write
+                        * Users: read
+                        * Products: read/write
+                        * Personal balance: read
+                        * All balances: read/write
+                        * Personal cart: read/write
+                        * All carts: read
+                        * Personal orders: read/write
+                        * All orders: read/write
+                        * All bills: read/write
+                      
+                      - **ADMIN** - Full system access with all permissions:
+                        * Profile: read/write
+                        * Users: read/write
+                        * Products: read/write
+                        * Personal and all balances: read/write
+                        * Personal and all carts: read/write
+                        * Personal and all orders: read/write
+                        * All bills: read/write
                       """,
         enumAsRef = true
 )
