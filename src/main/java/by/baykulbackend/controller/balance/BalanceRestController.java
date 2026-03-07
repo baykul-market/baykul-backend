@@ -40,7 +40,8 @@ public class BalanceRestController {
 
     @Operation(
             summary = "Get all balances",
-            description = "Retrieves all balances from the system with their users. Requires balances:write permission.",
+            description = "Retrieves all balances from the system with their users. " +
+                    "Requires all-balances:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -110,7 +111,7 @@ public class BalanceRestController {
             )
     })
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('balances:write')")
+    @PreAuthorize("hasAnyAuthority('all-balances:read')")
     @JsonView(Views.BalanceView.Get.class)
     public List<Balance> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
@@ -120,7 +121,7 @@ public class BalanceRestController {
 
     @Operation(
             summary = "Get balance by ID",
-            description = "Retrieves a specific balance by UUID with their user. Requires balances:write permission.",
+            description = "Retrieves a specific balance by UUID with their user. Requires all-balances:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -212,7 +213,7 @@ public class BalanceRestController {
             )
     })
     @GetMapping("/id")
-    @PreAuthorize("hasAnyAuthority('balances:write')")
+    @PreAuthorize("hasAnyAuthority('all-balances:read')")
     @JsonView(Views.BalanceFullView.class)
     public Balance getOne(
             @Parameter(
@@ -226,7 +227,8 @@ public class BalanceRestController {
 
     @Operation(
             summary = "Get balance by user ID",
-            description = "Retrieves a specific balance by user UUID with their user. Requires balances:write permission.",
+            description = "Retrieves a specific balance by user UUID with their user. " +
+                    "Requires all-balances:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -318,7 +320,7 @@ public class BalanceRestController {
             )
     })
     @GetMapping("/user")
-    @PreAuthorize("hasAnyAuthority('balances:write')")
+    @PreAuthorize("hasAnyAuthority('all-balances:read')")
     @JsonView(Views.BalanceFullView.class)
     public Balance getByUserId(
             @Parameter(
@@ -333,7 +335,7 @@ public class BalanceRestController {
     @Operation(
             summary = "Perform balance operation",
             description = "Performs a balance replenishment, withdrawal, or payment operation. " +
-                    "Requires 'balances:write' authority.",
+                    "Requires 'all-balances:write' authority.",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Balance operation request data",
                     required = true,
@@ -418,7 +420,7 @@ public class BalanceRestController {
     })
     @Transactional
     @PostMapping("/operation")
-    @PreAuthorize("hasAnyAuthority('balances:write')")
+    @PreAuthorize("hasAnyAuthority('all-balances:write')")
     public void operation(@RequestBody BalanceOperationDto balanceOperationDto) {
         balanceService.processBalance(balanceOperationDto);
     }

@@ -43,7 +43,7 @@ public class ProfileRestController {
     @Operation(
             summary = "Get user by authentication",
             description = "Retrieves a specific user by authentication principal with their all other information. " +
-                    "Requires users:read permission.",
+                    "Requires profile:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -137,7 +137,7 @@ public class ProfileRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:read')")
+    @PreAuthorize("hasAnyAuthority('profile:read')")
     @JsonView(Views.UserFullView.class)
     @GetMapping
     public User getProfile() {
@@ -148,7 +148,7 @@ public class ProfileRestController {
     @Operation(
             summary = "Update user by authentication",
             description = "Updates an existing information of user retrieved by authentication principal. " +
-                    "Requires users:read permission.",
+                    "Requires profile:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "User data to update",
@@ -260,7 +260,7 @@ public class ProfileRestController {
             )
     })
     @Transactional
-    @PreAuthorize("hasAnyAuthority('users:read')")
+    @PreAuthorize("hasAnyAuthority('profile:write')")
     @PatchMapping
     public ResponseEntity<?> updateProfile(@RequestBody @JsonView(Views.UserView.Patch.class) User user) {
         return userService.updateProfile(user);
@@ -269,7 +269,7 @@ public class ProfileRestController {
     @Operation(
             summary = "Get current user's refresh tokens",
             description = "Retrieves all refresh tokens for the currently authenticated user. " +
-                    "Requires users:read permission.",
+                    "Requires profile:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -358,7 +358,7 @@ public class ProfileRestController {
             )
     })
     @GetMapping("/refresh-token")
-    @PreAuthorize("hasAnyAuthority('users:read')")
+    @PreAuthorize("hasAnyAuthority('profile:read')")
     @JsonView(Views.RefreshTokenView.Get.class)
     public List<RefreshToken> getUserRefreshTokens() {
         return refreshTokenService.findUserRefreshTokens();
@@ -367,7 +367,7 @@ public class ProfileRestController {
     @Operation(
             summary = "Get balance by authentication",
             description = "Retrieves a specific balance by authentication principal with their user and balance history. " +
-                    "Requires balances:read permission.",
+                    "Requires my-balance:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -459,7 +459,7 @@ public class ProfileRestController {
             )
     })
     @GetMapping("/balance")
-    @PreAuthorize("hasAnyAuthority('balances:read')")
+    @PreAuthorize("hasAnyAuthority('my-balance:read')")
     @JsonView(Views.BalanceFullView.class)
     public Balance getProfileBalance() {
         return iBalanceRepository.findByUserLogin(authService.getAuthInfo().getPrincipal().toString())

@@ -38,7 +38,7 @@ public class UserSearchRestController {
     @Operation(
             summary = "Search users",
             description = "Searches users by login, email, or phone number containing the specified text with pagination. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -113,7 +113,7 @@ public class UserSearchRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping
     public List<User> search(
@@ -126,7 +126,7 @@ public class UserSearchRestController {
     @Operation(
             summary = "Get user by login",
             description = "Retrieves a specific user by exact login with their refresh tokens. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -208,7 +208,7 @@ public class UserSearchRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping("/exact/login")
     public User getByLogin(
@@ -224,7 +224,7 @@ public class UserSearchRestController {
     @Operation(
             summary = "Search users by login",
             description = "Searches users by login containing the specified text (case-insensitive) with pagination. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -299,7 +299,7 @@ public class UserSearchRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping("/login")
     public List<User> searchByLogin(
@@ -312,7 +312,7 @@ public class UserSearchRestController {
     @Operation(
             summary = "Get user by email",
             description = "Retrieves a specific user by exact email with their refresh tokens. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -394,7 +394,7 @@ public class UserSearchRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping("/exact/email")
     public User getByEmail(
@@ -410,7 +410,7 @@ public class UserSearchRestController {
     @Operation(
             summary = "Search users by email",
             description = "Searches users by email containing the specified text (case-insensitive) with pagination. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -485,7 +485,7 @@ public class UserSearchRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping("/email")
     public List<User> searchByEmail(
@@ -498,7 +498,7 @@ public class UserSearchRestController {
     @Operation(
             summary = "Get user by phone number",
             description = "Retrieves a specific user by exact phone number with their refresh tokens. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -580,7 +580,7 @@ public class UserSearchRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping("/exact/phoneNumber")
     public User getByPhoneNumber(
@@ -596,7 +596,7 @@ public class UserSearchRestController {
     @Operation(
             summary = "Search users by phone number",
             description = "Searches users by phone number containing the specified text with pagination. " +
-                    "Requires users:write permission or role manager.",
+                    "Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -671,7 +671,7 @@ public class UserSearchRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('users:write') or hasRole('MANAGER')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.UserView.Get.class)
     @GetMapping("/phoneNumber")
     public List<User> searchByPhoneNumber(

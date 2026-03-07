@@ -39,7 +39,7 @@ public class OrderRestController {
 
     @Operation(
             summary = "Get all orders",
-            description = "Retrieves all orders from the system with pagination. Requires orders:write permission.",
+            description = "Retrieves all orders from the system with pagination. Requires all-orders:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -112,7 +112,7 @@ public class OrderRestController {
             )
     })
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('orders:write')")
+    @PreAuthorize("hasAnyAuthority('all-orders:read')")
     @JsonView(Views.OrderView.Get.class)
     public List<Order> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
@@ -122,7 +122,7 @@ public class OrderRestController {
 
     @Operation(
             summary = "Get order by ID",
-            description = "Retrieves a specific order by UUID with all details. Requires orders:write permission.",
+            description = "Retrieves a specific order by UUID with all details. Requires all-orders:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -227,7 +227,7 @@ public class OrderRestController {
             )
     })
     @GetMapping("/id")
-    @PreAuthorize("hasAnyAuthority('orders:write')")
+    @PreAuthorize("hasAnyAuthority('all-orders:read')")
     @JsonView(Views.OrderFullView.class)
     public Order getOne(
             @Parameter(
@@ -243,7 +243,7 @@ public class OrderRestController {
     @Operation(
             summary = "Update order",
             description = """
-                    Updates an order. Requires orders:write permission.
+                    Updates an order. Requires all-orders:write permission.
                     
                     **Available status transitions:**
                     - From CREATED → PAID, CANCELLED
@@ -357,7 +357,7 @@ public class OrderRestController {
             )
     })
     @PatchMapping
-    @PreAuthorize("hasAnyAuthority('orders:write')")
+    @PreAuthorize("hasAnyAuthority('all-orders:write')")
     public ResponseEntity<?> update(
             @Parameter(
                     description = "UUID of the order to update",

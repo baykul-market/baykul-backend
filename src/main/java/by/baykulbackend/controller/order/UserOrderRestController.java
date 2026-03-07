@@ -41,7 +41,8 @@ public class UserOrderRestController {
 
     @Operation(
             summary = "Get user's orders",
-            description = "Retrieves all orders of the currently authenticated user with pagination. Requires orders:read permission.",
+            description = "Retrieves all orders of the currently authenticated user with pagination. " +
+                    "Requires my-orders:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -131,7 +132,7 @@ public class UserOrderRestController {
             )
     })
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('orders:read')")
+    @PreAuthorize("hasAnyAuthority('my-orders:read')")
     @JsonView(Views.OrderFullView.class)
     public List<Order> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
@@ -145,7 +146,7 @@ public class UserOrderRestController {
     @Operation(
             summary = "Get user's order by ID",
             description = "Retrieves a specific order by ID for the currently authenticated user. " +
-                    "Requires orders:read permission.",
+                    "Requires my-orders:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -243,7 +244,7 @@ public class UserOrderRestController {
             )
     })
     @GetMapping("/id")
-    @PreAuthorize("hasAnyAuthority('orders:read')")
+    @PreAuthorize("hasAnyAuthority('my-orders:read')")
     @JsonView(Views.OrderFullView.class)
     public Order getOne(
             @Parameter(
@@ -259,7 +260,7 @@ public class UserOrderRestController {
     @Operation(
             summary = "Create order from cart",
             description = "Creates a new order from the user's cart with availability check. " +
-                    "Requires orders:read permission.",
+                    "Requires my-orders:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -366,14 +367,15 @@ public class UserOrderRestController {
             )
     })
     @PostMapping("/create")
-    @PreAuthorize("hasAnyAuthority('orders:read')")
+    @PreAuthorize("hasAnyAuthority('my-orders:write')")
     public ResponseEntity<?> create(@RequestBody CreateOrderRequestDto request) {
         return orderService.createOrderFromCart(request);
     }
 
     @Operation(
             summary = "Pay for an existing order",
-            description = "Processes payment for an order that was created with 'payLater' option. Requires orders:read permission.",
+            description = "Processes payment for an order that was created with 'payLater' option. " +
+                    "Requires my-orders:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -409,7 +411,7 @@ public class UserOrderRestController {
             )
     })
     @PostMapping("/{id}/pay")
-    @PreAuthorize("hasAnyAuthority('orders:read')")
+    @PreAuthorize("hasAnyAuthority('my-orders:write')")
     public ResponseEntity<?> payForOrder(
             @Parameter(description = "UUID of the order to pay for", required = true)
             @PathVariable UUID id) {

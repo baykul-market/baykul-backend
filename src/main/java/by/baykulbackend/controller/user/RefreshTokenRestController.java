@@ -40,7 +40,7 @@ public class RefreshTokenRestController {
 
     @Operation(
             summary = "Get all refresh tokens",
-            description = "Retrieves all refresh tokens from the system. Requires users:write permission.",
+            description = "Retrieves all refresh tokens from the system. Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -119,7 +119,7 @@ public class RefreshTokenRestController {
             )
     })
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('users:write')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.RefreshTokenFullView.class)
     public List<RefreshToken> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
@@ -129,7 +129,7 @@ public class RefreshTokenRestController {
 
     @Operation(
             summary = "Get refresh token by ID",
-            description = "Retrieves a specific refresh token by its UUID. Requires users:write permission.",
+            description = "Retrieves a specific refresh token by its UUID. Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -206,7 +206,7 @@ public class RefreshTokenRestController {
             )
     })
     @GetMapping("/id")
-    @PreAuthorize("hasAnyAuthority('users:write')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.RefreshTokenFullView.class)
     public RefreshToken getOne(
             @Parameter(
@@ -220,7 +220,7 @@ public class RefreshTokenRestController {
 
     @Operation(
             summary = "Get refresh tokens by user ID",
-            description = "Retrieves all refresh tokens for a specific user. Requires users:write permission.",
+            description = "Retrieves all refresh tokens for a specific user. Requires users:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -310,7 +310,7 @@ public class RefreshTokenRestController {
             )
     })
     @GetMapping("/user")
-    @PreAuthorize("hasAnyAuthority('users:write')")
+    @PreAuthorize("hasAnyAuthority('users:read')")
     @JsonView(Views.RefreshTokenView.Get.class)
     public List<RefreshToken> getUserRefTokensByUserId(
             @Parameter(
@@ -325,7 +325,7 @@ public class RefreshTokenRestController {
     @Operation(
             summary = "Delete refresh token",
             description = "Deletes a refresh token by ID. User can only delete their own tokens unless they are ADMIN. " +
-                    "Requires users:read permission.",
+                    "Requires profile:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -411,7 +411,7 @@ public class RefreshTokenRestController {
             )
     })
     @DeleteMapping("/id")
-    @PreAuthorize("hasAnyAuthority('users:read')")
+    @PreAuthorize("hasAnyAuthority('profile:write')")
     public ResponseEntity<?> delete(
             @Parameter(
                     description = "UUID of the refresh token to delete",

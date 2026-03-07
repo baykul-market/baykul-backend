@@ -13,21 +13,60 @@ import java.util.stream.Collectors;
                       
                       **Available roles:**
                       
-                      - **USER** - Standard user with permissions: users:read, balances:read, products:read, carts:read, orders:read
-                      - **MANAGER** - Manager with permissions: users:read, balances:read/write, products:read/write, carts:read, orders:read/write, bills:read/write
-                      - **ADMIN** - Full system access
+                      - **USER** - Standard user with permissions:
+                        * Profile: read/write
+                        * Products: read
+                        * Personal balance: read
+                        * Personal cart: read/write
+                        * Personal orders: read/write
+                      
+                      - **MANAGER** - Manager with permissions:
+                        * Profile: read/write
+                        * Users: read
+                        * Products: read/write
+                        * Personal balance: read
+                        * All balances: read/write
+                        * Personal cart: read/write
+                        * All carts: read
+                        * Personal orders: read/write
+                        * All orders: read/write
+                        * All bills: read/write
+                      
+                      - **ADMIN** - Full system access with all permissions:
+                        * Profile: read/write
+                        * Users: read/write
+                        * Products: read/write
+                        * Personal and all balances: read/write
+                        * Personal and all carts: read/write
+                        * Personal and all orders: read/write
+                        * All bills: read/write
                       """,
         enumAsRef = true
 )
 public enum Role {
-    USER(Set.of(Permission.USERS_READ, Permission.BALANCE_READ, Permission.PRODUCT_READ, Permission.CART_READ,
-            Permission.ORDER_READ)),
-    MANAGER(Set.of(Permission.USERS_READ, Permission.BALANCE_READ, Permission.BALANCE_WRITE,
-            Permission.PRODUCT_READ, Permission.PRODUCT_WRITE, Permission.CART_READ, Permission.ORDER_READ,
-            Permission.ORDER_WRITE, Permission.BILL_READ, Permission.BILL_WRITE)),
-    ADMIN(Set.of(Permission.USERS_READ, Permission.USERS_WRITE, Permission.BALANCE_READ, Permission.BALANCE_WRITE,
-            Permission.PRODUCT_READ, Permission.PRODUCT_WRITE, Permission.CART_READ, Permission.CART_WRITE,
-            Permission.ORDER_READ, Permission.ORDER_WRITE, Permission.BILL_READ, Permission.BILL_WRITE)),;
+    USER(Set.of(
+            Permission.PROFILE_READ, Permission.PROFILE_WRITE,
+            Permission.PRODUCT_READ,
+            Permission.MY_BALANCE_READ,
+            Permission.MY_CART_READ, Permission.MY_CART_WRITE,
+            Permission.MY_ORDER_READ, Permission.MY_ORDER_WRITE
+    )),
+    MANAGER(Set.of(
+            Permission.PROFILE_READ, Permission.PROFILE_WRITE, Permission.USERS_READ,
+            Permission.PRODUCT_READ, Permission.PRODUCT_WRITE,
+            Permission.MY_BALANCE_READ, Permission.ALL_BALANCE_READ, Permission.ALL_BALANCE_WRITE,
+            Permission.MY_CART_READ, Permission.MY_CART_WRITE, Permission.ALL_CART_READ,
+            Permission.MY_ORDER_READ, Permission.MY_ORDER_WRITE, Permission.ALL_ORDER_READ, Permission.ALL_ORDER_WRITE,
+            Permission.ALL_BILL_READ, Permission.ALL_BILL_WRITE
+    )),
+    ADMIN(Set.of(
+            Permission.PROFILE_READ, Permission.PROFILE_WRITE, Permission.USERS_READ, Permission.USERS_WRITE,
+            Permission.PRODUCT_READ, Permission.PRODUCT_WRITE,
+            Permission.MY_BALANCE_READ, Permission.ALL_BALANCE_READ, Permission.ALL_BALANCE_WRITE,
+            Permission.MY_CART_READ, Permission.MY_CART_WRITE, Permission.ALL_CART_READ, Permission.ALL_CART_WRITE,
+            Permission.MY_ORDER_READ, Permission.MY_ORDER_WRITE, Permission.ALL_ORDER_READ, Permission.ALL_ORDER_WRITE,
+            Permission.ALL_BILL_READ, Permission.ALL_BILL_WRITE
+    ));
 
     private final Set<Permission> permissions;
 
