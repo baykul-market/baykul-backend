@@ -41,9 +41,9 @@ public class OrderProductRestController {
     private final IOrderProductRepository iOrderProductRepository;
 
     @Operation(
-            summary = "Get all order products without bill and with status ORDERED",
-            description = "Retrieves all order products without bill and with status ORDERED from the system " +
-                    "with pagination. Requires all-orders:read permission.",
+            summary = "Get all order products without bill",
+            description = "Retrieves all order products without bill from the system " +
+                    "with pagination. Requires all-orders:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -121,7 +121,7 @@ public class OrderProductRestController {
     public List<OrderProduct> getAllOrderedWithoutBill(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iOrderProductRepository.findAllByBillIsNullAndStatus(BoxStatus.ORDERED, pageable).stream().toList();
+        return iOrderProductRepository.findAllByBillIsNull(pageable).stream().toList();
     }
 
     @Operation(

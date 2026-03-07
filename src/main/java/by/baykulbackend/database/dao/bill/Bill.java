@@ -62,18 +62,18 @@ public class Bill {
             minimum = "10000"
     )
     @Column(name = "number", nullable = false, unique = true, updatable = false)
-    @JsonView({Views.BillView.Get.class, Views.BillView.Post.class, Views.BillView.Patch.class})
+    @JsonView({Views.BillView.Get.class})
     private Long number;
 
     @Schema(
             description = "Bill status",
             requiredMode = Schema.RequiredMode.REQUIRED,
             example = "DRAFT",
-            allowableValues = {"DRAFT", "APPLIED", "CANCELED"}
+            allowableValues = {"DRAFT", "APPLIED"}
     )
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    @JsonView({Views.BillView.Get.class, Views.BillView.Post.class, Views.BillView.Patch.class})
+    @JsonView({Views.BillView.Get.class, Views.BillView.Patch.class})
     private BillStatus status;
 
     @Schema(
