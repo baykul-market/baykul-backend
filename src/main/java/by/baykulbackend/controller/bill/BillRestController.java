@@ -38,7 +38,7 @@ public class BillRestController {
 
     @Operation(
             summary = "Get all bills",
-            description = "Retrieves all bills with pagination support. Requires bills:read permission.",
+            description = "Retrieves all bills with pagination support. Requires all-bills:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @Parameters({
@@ -104,7 +104,7 @@ public class BillRestController {
             )
     })
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('bills:read')")
+    @PreAuthorize("hasAnyAuthority('all-bills:read')")
     @JsonView(Views.BillView.Get.class)
     public List<Bill> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
@@ -114,7 +114,7 @@ public class BillRestController {
 
     @Operation(
             summary = "Get bill by ID",
-            description = "Retrieves a specific bill by its UUID with full details. Requires bills:read permission.",
+            description = "Retrieves a specific bill by its UUID with full details. Requires all-bills:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -203,7 +203,7 @@ public class BillRestController {
             )
     })
     @GetMapping("/id")
-    @PreAuthorize("hasAnyAuthority('bills:read')")
+    @PreAuthorize("hasAnyAuthority('all-bills:read')")
     @JsonView(Views.BillFullView.class)
     public Bill getOne(
             @Parameter(
@@ -219,7 +219,7 @@ public class BillRestController {
     @Operation(
             summary = "Create a new bill",
             description = "Creates a new bill in DRAFT status. Can optionally include order products. " +
-                    "Requires bills:write permission.",
+                    "Requires all-bills:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -291,7 +291,7 @@ public class BillRestController {
             )
     })
     @PostMapping("/create")
-    @PreAuthorize("hasAnyAuthority('bills:write')")
+    @PreAuthorize("hasAnyAuthority('all-bills:write')")
     public ResponseEntity<?> create(
             @JsonView(Views.BillCreateFullView.class)
             @RequestBody
@@ -303,7 +303,7 @@ public class BillRestController {
     @Operation(
             summary = "Apply a bill",
             description = "Changes bill status from DRAFT to APPLIED. Only draft bills can be applied. " +
-                    "Requires bills:write permission.",
+                    "Requires all-bills:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -386,7 +386,7 @@ public class BillRestController {
             )
     })
     @PostMapping("/apply")
-    @PreAuthorize("hasAnyAuthority('bills:write')")
+    @PreAuthorize("hasAnyAuthority('all-bills:write')")
     public ResponseEntity<?> apply(
             @Parameter(
                     description = "UUID of the bill to apply",
@@ -401,7 +401,7 @@ public class BillRestController {
     @Operation(
             summary = "Add order product to bill",
             description = "Adds an order product to an existing draft bill. " +
-                    "Requires bills:write permission.",
+                    "Requires all-bills:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -484,7 +484,7 @@ public class BillRestController {
             )
     })
     @PostMapping("/add")
-    @PreAuthorize("hasAnyAuthority('bills:write')")
+    @PreAuthorize("hasAnyAuthority('all-bills:write')")
     public ResponseEntity<?> add(
             @Parameter(
                     description = "UUID of the order product to add to bill",
@@ -505,7 +505,7 @@ public class BillRestController {
     @Operation(
             summary = "Remove order product from bill",
             description = "Removes an order product from a draft bill. " +
-                    "Requires bills:write permission.",
+                    "Requires all-bills:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -588,7 +588,7 @@ public class BillRestController {
             )
     })
     @PostMapping("/remove")
-    @PreAuthorize("hasAnyAuthority('bills:write')")
+    @PreAuthorize("hasAnyAuthority('all-bills:write')")
     public ResponseEntity<?> remove(
             @Parameter(
                     description = "UUID of the order product to remove from bill",
@@ -609,7 +609,7 @@ public class BillRestController {
     @Operation(
             summary = "Delete a bill",
             description = "Deletes a draft bill and detaches all associated order products. " +
-                    "Only draft bills can be deleted. Requires bills:write permission.",
+                    "Only draft bills can be deleted. Requires all-bills:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -692,7 +692,7 @@ public class BillRestController {
             )
     })
     @DeleteMapping
-    @PreAuthorize("hasAnyAuthority('bills:write')")
+    @PreAuthorize("hasAnyAuthority('all-bills:write')")
     public ResponseEntity<?> delete(
             @Parameter(
                     description = "UUID of the bill to delete",
