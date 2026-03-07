@@ -6,6 +6,8 @@ import by.baykulbackend.database.dao.order.BoxStatus;
 import by.baykulbackend.database.dao.order.OrderProduct;
 import by.baykulbackend.database.repository.bill.IBillRepository;
 import by.baykulbackend.database.repository.order.IOrderProductRepository;
+import by.baykulbackend.exceptions.BadRequestException;
+import by.baykulbackend.exceptions.NotFoundException;
 import by.baykulbackend.services.user.AuthService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +49,7 @@ public class BillService {
                     .collect(Collectors.toSet());
 
             for (UUID orderProductId : orderProductIdSet) {
-                iOrderProductRepository.findByBillIsNullAndIdAndStatus(orderProductId, BoxStatus.ORDERED).ifPresentOrElse(
+                iOrderProductRepository.findByBillIsNullAndId(orderProductId).ifPresentOrElse(
                         op -> op.setBill(newBill),
                         () -> unavailableOrderProductIds.add(orderProductId)
                 );
@@ -69,6 +71,101 @@ public class BillService {
         response.put("id", newBill.getId().toString());
 
         log.info("Bill {} created -> {}", newBill.getId(), authService.getAuthInfo().getPrincipal());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Transactional
+    public ResponseEntity<?> applyBill(UUID billId) {
+        Map<String, Object> response = new HashMap<>();
+
+        Bill billFromDb = iBillRepository.findById(billId)
+                .orElseThrow(() -> new NotFoundException("Bill not found"));
+
+        if (!billFromDb.getStatus().equals(BillStatus.DRAFT)) {
+            throw new BadRequestException("Cannot update non-draft bill");
+        }
+
+        billFromDb.setStatus(BillStatus.APPLIED);
+        iBillRepository.save(billFromDb);
+        response.put("update_bill", "true");
+        log.info("Bill {} updated -> {}", billId, authService.getAuthInfo().getPrincipal());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Transactional
+    public ResponseEntity<?> addBoxToBill(UUID billId, UUID orderProductId) {
+        Map<String, Object> response = new HashMap<>();
+
+        Bill bill = iBillRepository.findById(billId)
+                .orElseThrow(() -> new NotFoundException("Bill not found"));
+
+        if (!bill.getStatus().equals(BillStatus.DRAFT)) {
+            throw new BadRequestException("Cannot update non-draft bill");
+        }
+
+        OrderProduct orderProduct = iOrderProductRepository.findById(orderProductId)
+                .orElseThrow(() -> new NotFoundException("Order product not found"));
+
+        if (orderProduct.getBill() != null && orderProduct.getBill().getStatus().equals(BillStatus.APPLIED)) {
+            throw new BadRequestException(
+                    String.format("Order product is already in bill %s", orderProduct.getBill().getId())
+            );
+        }
+
+        orderProduct.setBill(bill);
+        iOrderProductRepository.save(orderProduct);
+        response.put("update_bill", "true");
+        log.info("Bill {} updated -> {}", bill.getId(), authService.getAuthInfo().getPrincipal());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Transactional
+    public ResponseEntity<?> removeBoxFromBill(UUID billId, UUID orderProductId) {
+        Map<String, Object> response = new HashMap<>();
+
+        Bill bill = iBillRepository.findById(billId)
+                .orElseThrow(() -> new NotFoundException("Bill not found"));
+
+        if (!bill.getStatus().equals(BillStatus.DRAFT)) {
+            throw new BadRequestException("Cannot update non-draft bill");
+        }
+
+        OrderProduct orderProduct = iOrderProductRepository.findById(orderProductId)
+                .orElseThrow(() -> new NotFoundException("Order product not found"));
+
+        if (orderProduct.getBill() == null || !orderProduct.getBill().equals(bill)) {
+            throw new BadRequestException("Order product is not in that bill");
+        }
+
+        orderProduct.setBill(null);
+        iOrderProductRepository.save(orderProduct);
+        response.put("update_bill", "true");
+        log.info("Bill {} updated -> {}", bill.getId(), authService.getAuthInfo().getPrincipal());
+
+        return ResponseEntity.ok(response);
+    }
+
+    @Transactional
+    public ResponseEntity<?> deleteBillById(UUID billId) {
+        Map<String, Object> response = new HashMap<>();
+
+        Bill bill = iBillRepository.findById(billId).orElseThrow(() -> new NotFoundException("Bill not found"));
+
+        if (bill.getStatus() != BillStatus.DRAFT) {
+            throw new BadRequestException("Can delete only draft bill");
+        }
+
+        for (OrderProduct orderProduct : bill.getOrderProducts()) {
+            orderProduct.setBill(null);
+        }
+
+        iOrderProductRepository.saveAll(bill.getOrderProducts());
+        iBillRepository.delete(bill);
+        response.put("delete_bill", "true");
+        log.info("Bill {} deleted -> {}", bill.getId(), authService.getAuthInfo().getPrincipal());
 
         return ResponseEntity.ok(response);
     }

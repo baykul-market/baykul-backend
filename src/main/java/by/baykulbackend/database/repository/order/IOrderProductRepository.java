@@ -13,6 +13,6 @@ public interface IOrderProductRepository extends JpaRepository<OrderProduct, UUI
     Optional<OrderProduct> findByNumber(Long number);
     Page<OrderProduct> findAllByStatus(BoxStatus status, Pageable pageable);
     boolean existsByNumber(Long number);
-    Page<OrderProduct> findAllByBillIsNullAndStatus(BoxStatus status, Pageable pageable);
-    Optional<OrderProduct> findByBillIsNullAndIdAndStatus(UUID id, BoxStatus status);
+    Page<OrderProduct> findAllByBillIsNull(Pageable pageable);
+    Optional<OrderProduct> findByBillIsNullAndId(UUID id);
 }
