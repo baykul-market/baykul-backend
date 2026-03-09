@@ -14,6 +14,7 @@ import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -131,6 +132,16 @@ public class User {
     @Column(name = "can_pay_later")
     @JsonView({Views.UserAdminView.class, Views.UserView.Post.class, Views.UserView.Patch.class})
     private Boolean canPayLater;
+
+    @Schema(
+            description = "Individual markup percentage for user purchases",
+            example = "0.10",
+            defaultValue = "0.10",
+            minimum = "0"
+    )
+    @Column(name = "markup_percentage", nullable = false)
+    @JsonView(Views.UserView.Patch.class)
+    private BigDecimal markupPercentage;
 
     @Schema(
             description = "List of refresh tokens associated with the user",

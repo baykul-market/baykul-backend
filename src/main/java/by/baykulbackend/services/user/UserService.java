@@ -9,6 +9,7 @@ import by.baykulbackend.database.model.Role;
 import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.utils.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class UserService {
     private final IRefreshTokenRepository iRefreshTokenRepository;
     private final AuthService authService;
     private final PasswordEncoderConfig passwordEncoderConfig;
+    private final PriceService priceService;
 
     /**
      * Creates a new user in the system.
@@ -76,11 +78,14 @@ public class UserService {
         Balance balance = new Balance();
         balance.setUser(user);
         balance.setAccount(new BigDecimal("0.00"));
+        balance.setCurrency(priceService.getCurrency());
         user.setBalance(balance);
 
         Cart cart = new Cart();
         cart.setUser(user);
         user.setCart(cart);
+
+        user.setMarkupPercentage(priceService.getMarkupPercentage());
 
         iUserRepository.save(user);
         response.put("create_user", "true");

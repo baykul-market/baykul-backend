@@ -1,9 +1,14 @@
 package by.baykulbackend.services.product;
 
-import by.baykulbackend.database.dao.product.Currency;
+import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
+import by.baykulbackend.database.dao.user.User;
+import by.baykulbackend.database.dto.product.PartDto;
+import by.baykulbackend.database.model.Permission;
 import by.baykulbackend.database.repository.product.IPartRepository;
+import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.services.user.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 
 @Slf4j
@@ -23,7 +29,9 @@ import java.util.*;
 @RequiredArgsConstructor
 public class PartService {
     private final IPartRepository iPartRepository;
+    private final IUserRepository iUserRepository;
     private final AuthService authService;
+    private final PriceService priceService;
 
     /**
      * Creates a new part in the system.
@@ -63,6 +71,76 @@ public class PartService {
         log.info("Part {} has ben created. -> {}", part.getArticle(), authService.getAuthInfo().getPrincipal());
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get all parts with pagination
+     *
+     * @param pageable pagination parameters
+     * @return Page of PartDto
+     */
+    public Page<PartDto> getAllParts(Pageable pageable) {
+        Page<Part> partPage = iPartRepository.findAll(pageable);
+        return partPage.map(this::convertToDto);
+    }
+
+    /**
+     * Get part by ID
+     *
+     * @param id part UUID
+     * @return PartDto
+     * @throws NotFoundException if part not found
+     */
+    public PartDto getPartById(UUID id) {
+        Part part = iPartRepository.findById(id).orElseThrow(() -> new NotFoundException("Part not found"));
+        return convertToDto(part);
+    }
+
+    /**
+     * Get part by exact article
+     */
+    public PartDto getPartByArticle(String article) {
+        Part part = iPartRepository.findByArticle(article)
+                .orElseThrow(() -> new NotFoundException("Part not found"));
+        return convertToDto(part);
+    }
+
+    /**
+     * Get parts by exact name with pagination
+     */
+    public Page<PartDto> getPartsByExactName(String name, Pageable pageable) {
+        return iPartRepository.findByName(name, pageable).map(this::convertToDto);
+    }
+
+    /**
+     * Get parts by exact brand with pagination
+     */
+    public Page<PartDto> getPartsByExactBrand(String brand, Pageable pageable) {
+        return iPartRepository.findByBrand(brand, pageable).map(this::convertToDto);
+    }
+
+    /**
+     * Searches for parts by article containing text.
+     */
+    public Page<PartDto> searchPartsByArticle(String article, Pageable pageable) {
+        return iPartRepository.findByArticleContainingIgnoreCase(article, pageable)
+                .map(this::convertToDto);
+    }
+
+    /**
+     * Searches for parts by name containing text.
+     */
+    public Page<PartDto> searchPartsByName(String name, Pageable pageable) {
+        return iPartRepository.findByNameContainingIgnoreCase(name, pageable)
+                .map(this::convertToDto);
+    }
+
+    /**
+     * Searches for parts by brand containing text.
+     */
+    public Page<PartDto> searchPartsByBrand(String brand, Pageable pageable) {
+        return iPartRepository.findByBrandContainingIgnoreCase(brand, pageable)
+                .map(this::convertToDto);
     }
 
     /**
@@ -166,21 +244,21 @@ public class PartService {
     }
 
     /**
-     * Searches for parts by article, name containing the given text.
+     * Searches for parts by article or name containing the given text.
      * Performs case-insensitive search.
      * Returns distinct parts to avoid duplicates.
      *
      * @param text the search text to match against part attributes
      * @param pageable pagination and sorting parameters
-     * @return Page of matching Part objects
+     * @return Page of matching PartDto objects
      */
-    public Page<Part> searchPart(String text, Pageable pageable) {
+    public Page<PartDto> searchPart(String text, Pageable pageable) {
         if (text == null || text.isEmpty()) {
             return Page.empty(pageable);
         }
 
-        Page<Part> articleResults = iPartRepository.findByArticleContainingIgnoreCase(text, pageable);
-        Page<Part> nameResults = iPartRepository.findByNameContainingIgnoreCase(text, pageable);
+        Page<Part> articleResults = iPartRepository.findByArticleContainingIgnoreCase(text, Pageable.unpaged());
+        Page<Part> nameResults = iPartRepository.findByNameContainingIgnoreCase(text, Pageable.unpaged());
 
         Set<Part> combined = new LinkedHashSet<>();
         combined.addAll(articleResults.getContent());
@@ -196,48 +274,88 @@ public class PartService {
         }
 
         List<Part> pageContent = content.subList(start, end);
-        return new PageImpl<>(pageContent, pageable, content.size());
+        List<PartDto> dtoContent = pageContent.stream()
+                .map(this::convertToDto)
+                .toList();
+
+        return new PageImpl<>(dtoContent, pageable, content.size());
     }
 
     /**
-     * Searches for parts by multiple filters with pagination using optimized repository methods.
+     * Searches for parts by multiple filters with pagination.
      *
      * @param article article filter (optional)
      * @param name name filter (optional)
      * @param brand brand filter (optional)
      * @param pageable pagination and sorting parameters
-     * @return Page of matching Part objects
+     * @return Page of matching PartDto objects
      */
-    public Page<Part> searchPartsByFilter(String article, String name, String brand, Pageable pageable) {
+    public Page<PartDto> searchPartsByFilter(String article, String name, String brand, Pageable pageable) {
         boolean hasArticle = StringUtils.isNotBlank(article);
         boolean hasName = StringUtils.isNotBlank(name);
         boolean hasBrand = StringUtils.isNotBlank(brand);
 
-        if (!hasArticle && !hasName && !hasBrand) {
-            return iPartRepository.findAll(pageable);
-        }
+        Page<Part> partPage;
 
-        if (hasArticle && hasName && hasBrand) {
-            return iPartRepository.findByBrandContainingIgnoreCaseAndNameContainingIgnoreCaseAndArticleContainingIgnoreCase(
+        if (!hasArticle && !hasName && !hasBrand) {
+            partPage = iPartRepository.findAll(pageable);
+        } else if (hasArticle && hasName && hasBrand) {
+            partPage = iPartRepository.findByBrandContainingIgnoreCaseAndNameContainingIgnoreCaseAndArticleContainingIgnoreCase(
                     brand, name, article, pageable
             );
         } else if (hasArticle && hasName) {
-            return iPartRepository.findByArticleContainingIgnoreCaseAndNameContainingIgnoreCase(
+            partPage = iPartRepository.findByArticleContainingIgnoreCaseAndNameContainingIgnoreCase(
                     article, name, pageable
             );
         } else if (hasArticle && hasBrand) {
-            return iPartRepository.findByBrandContainingIgnoreCaseAndArticleContainingIgnoreCase(
+            partPage = iPartRepository.findByBrandContainingIgnoreCaseAndArticleContainingIgnoreCase(
                     brand, article, pageable
             );
         } else if (hasName && hasBrand) {
-            return iPartRepository.findByBrandContainingIgnoreCaseAndNameContainingIgnoreCase(brand, name, pageable);
+            partPage = iPartRepository.findByBrandContainingIgnoreCaseAndNameContainingIgnoreCase(brand, name, pageable);
         } else if (hasArticle) {
-            return iPartRepository.findByArticleContainingIgnoreCase(article, pageable);
+            partPage = iPartRepository.findByArticleContainingIgnoreCase(article, pageable);
         } else if (hasName) {
-            return iPartRepository.findByNameContainingIgnoreCase(name, pageable);
+            partPage = iPartRepository.findByNameContainingIgnoreCase(name, pageable);
         } else {
-            return iPartRepository.findByBrandContainingIgnoreCase(brand, pageable);
+            partPage = iPartRepository.findByBrandContainingIgnoreCase(brand, pageable);
         }
+
+        return partPage.map(this::convertToDto);
+    }
+
+    /**
+     * Конвертирует Part в PartDto
+     */
+    private PartDto convertToDto(Part part) {
+        BigDecimal price;
+        Currency currency;
+
+        User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        if (user.getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
+            price = part.getPrice();
+            currency = part.getCurrency();
+        } else {
+            price = priceService.calculateProductPrice(part, part.getStorageCount() == null || part.getStorageCount() == 0);
+            currency = priceService.getCurrency();
+        }
+
+        return PartDto.builder()
+                .id(part.getId())
+                .createdTs(part.getCreatedTs())
+                .updatedTs(part.getUpdatedTs())
+                .article(part.getArticle())
+                .name(part.getName())
+                .weight(part.getWeight())
+                .minCount(part.getMinCount())
+                .storageCount(part.getStorageCount())
+                .returnPart(part.getReturnPart())
+                .price(price)
+                .currency(currency)
+                .brand(part.getBrand())
+                .build();
     }
 
     /**

@@ -65,13 +65,15 @@ public class BalanceRestController {
                                                 "id": "123e4567-e89b-12d3-a456-426614174001",
                                                 "createdTs": "2024-01-15T10:30:00",
                                                 "updatedTs": "2024-01-20T14:45:30",
-                                                "account": 2024.30
+                                                "account": 2024.30,
+                                                "currency": "RUB"
                                               },
                                               {
                                                 "id": "522t4767-e89b-12d3-a456-426614174563",
                                                 "createdTs": "2024-01-15T10:30:00",
                                                 "updatedTs": "2024-01-20T14:45:30",
-                                                "account": -123.00
+                                                "account": 123.00,
+                                                "currency": "RUB"
                                             ]
                                             """
                             )
@@ -140,6 +142,7 @@ public class BalanceRestController {
                                               "createdTs": "2024-01-15T10:30:00",
                                               "updatedTs": "2024-01-20T14:45:30",
                                               "account": 2024.30,
+                                              "currency": "RUB",
                                               "user": {
                                                 "id": "123e4567-e89b-12d3-a456-426614174000",
                                                 "login": "john_doe",
@@ -155,8 +158,10 @@ public class BalanceRestController {
                                                 {
                                                   "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                   "amount": 10.00,
+                                                  "currency": "RUB",
                                                   "operationType": "REPLENISHMENT",
-                                                  "resultAccount": 20.00
+                                                  "resultAccount": 20.00,
+                                                  "resultCurrency": "RUB"
                                                 }
                                               ]
                                             }
@@ -247,6 +252,7 @@ public class BalanceRestController {
                                               "createdTs": "2024-01-15T10:30:00",
                                               "updatedTs": "2024-01-20T14:45:30",
                                               "account": 2024.30,
+                                              "currency": "RUB",
                                               "user": {
                                                 "id": "123e4567-e89b-12d3-a456-426614174000",
                                                 "login": "john_doe",
@@ -262,8 +268,10 @@ public class BalanceRestController {
                                                 {
                                                   "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                   "amount": 10.00,
+                                                  "currency": "RUB",
                                                   "operationType": "REPLENISHMENT",
-                                                  "resultAccount": 20.00
+                                                  "resultAccount": 20.00,
+                                                  "resultCurrency": "RUB"
                                                 }
                                               ]
                                             }
@@ -349,6 +357,7 @@ public class BalanceRestController {
                                             {
                                                 "balanceId": "123e4567-e89b-12d3-a456-426614174001",
                                                 "amount": 1000.50,
+                                                "currency": "RUB",
                                                 "operationType": "REPLENISHMENT",
                                                 "description": "Replenishment via bank card"
                                             }
@@ -360,6 +369,7 @@ public class BalanceRestController {
                                             {
                                                 "balanceId": "123e4567-e89b-12d3-a456-426614174002",
                                                 "amount": 500.00,
+                                                "currency": "RUB",
                                                 "operationType": "WITHDRAWAL",
                                                 "description": "Withdrawal to card"
                                             }
@@ -371,6 +381,7 @@ public class BalanceRestController {
                                             {
                                                 "userId": "123e4567-e89b-12d3-a456-426614174003",
                                                 "amount": 250.75,
+                                                "currency": "RUB",
                                                 "operationType": "PAYMENT",
                                                 "description": "Internet service payment"
                                             }

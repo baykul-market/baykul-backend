@@ -1,9 +1,7 @@
 package by.baykulbackend.controller.product;
 
-import by.baykulbackend.database.dao.product.Part;
+import by.baykulbackend.database.dto.product.PartDto;
 import by.baykulbackend.database.dto.security.Views;
-import by.baykulbackend.database.repository.product.IPartRepository;
-import by.baykulbackend.exceptions.NotFoundException;
 import by.baykulbackend.services.product.PartService;
 import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
@@ -31,7 +29,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @Tag(name = "Product Search", description = "API for spare part search operations")
 public class PartSearchRestController {
-    private final IPartRepository iPartRepository;
     private final PartService partService;
 
     @Operation(
@@ -126,12 +123,11 @@ public class PartSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping
-    @JsonView(Views.PartView.Get.class)
-    public List<Part> search(
+    public List<PartDto> search(
             @RequestParam(required = false, defaultValue = "") String text,
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return partService.searchPart(text, pageable).stream().toList();
+        return partService.searchPart(text, pageable).getContent();
     }
 
     @Operation(
@@ -213,14 +209,13 @@ public class PartSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping("/filter")
-    @JsonView(Views.PartView.Get.class)
-    public List<Part> searchByFilter(
+    public List<PartDto> searchByFilter(
             @RequestParam(required = false) String article,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String brand,
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return partService.searchPartsByFilter(article, name, brand, pageable).stream().toList();
+        return partService.searchPartsByFilter(article, name, brand, pageable).getContent();
     }
 
     @Operation(
@@ -307,15 +302,14 @@ public class PartSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping("/exact/article")
-    @JsonView(Views.PartView.Get.class)
-    public Part getByArticle(
+    public PartDto getByArticle(
             @Parameter(
                     description = "Article number to search for",
                     required = true,
                     example = "2405947"
             )
             @RequestParam String article) {
-        return iPartRepository.findByArticle(article).orElseThrow(() -> new NotFoundException("Part not found"));
+        return partService.getPartByArticle(article);
     }
 
     @Operation(
@@ -409,12 +403,11 @@ public class PartSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping("/article")
-    @JsonView(Views.PartView.Get.class)
-    public List<Part> searchByArticle(
+    public List<PartDto> searchByArticle(
             @RequestParam String article,
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iPartRepository.findByArticleContainingIgnoreCase(article, pageable).stream().toList();
+        return partService.searchPartsByArticle(article, pageable).getContent();
     }
 
     @Operation(
@@ -494,12 +487,11 @@ public class PartSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping("/exact/name")
-    @JsonView(Views.PartView.Get.class)
-    public List<Part> getByName(
+    public List<PartDto> getByName(
             @RequestParam String name,
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iPartRepository.findByName(name, pageable).stream().toList();
+        return partService.getPartsByExactName(name, pageable).getContent();
     }
 
     @Operation(
@@ -593,12 +585,11 @@ public class PartSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping("/name")
-    @JsonView(Views.PartView.Get.class)
-    public List<Part> searchByName(
+    public List<PartDto> searchByName(
             @RequestParam String name,
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iPartRepository.findByNameContainingIgnoreCase(name, pageable).stream().toList();
+        return partService.searchPartsByName(name, pageable).getContent();
     }
 
     @Operation(
@@ -635,20 +626,6 @@ public class PartSearchRestController {
                                                 "storageCount": 5,
                                                 "returnPart": 3.01,
                                                 "price": 7862.43,
-                                                "currency": "EUR",
-                                                "brand": "rolls royce"
-                                              },
-                                              {
-                                                "id": "123e4567-e89b-12d3-a456-426614174005",
-                                                "createdTs": "2024-01-18T13:10:00",
-                                                "updatedTs": "2024-01-19T15:40:00",
-                                                "article": "2405951",
-                                                "name": "Spark Plug",
-                                                "weight": 0.1,
-                                                "minCount": 10,
-                                                "storageCount": 50,
-                                                "returnPart": 0.10,
-                                                "price": 800.00,
                                                 "currency": "EUR",
                                                 "brand": "rolls royce"
                                               }
@@ -692,12 +669,11 @@ public class PartSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping("/exact/brand")
-    @JsonView(Views.PartView.Get.class)
-    public List<Part> getByBrand(
+    public List<PartDto> getByBrand(
             @RequestParam String brand,
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iPartRepository.findByBrand(brand, pageable).stream().toList();
+        return partService.getPartsByExactBrand(brand, pageable).getContent();
     }
 
     @Operation(
@@ -791,11 +767,10 @@ public class PartSearchRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping("/brand")
-    @JsonView(Views.PartView.Get.class)
-    public List<Part> searchByBrand(
+    public List<PartDto> searchByBrand(
             @RequestParam String brand,
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iPartRepository.findByBrandContainingIgnoreCase(brand, pageable).stream().toList();
+        return partService.searchPartsByBrand(brand, pageable).getContent();
     }
 }

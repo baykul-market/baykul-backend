@@ -1,10 +1,10 @@
 package by.baykulbackend.controller.product;
 
 import by.baykulbackend.database.dao.product.Part;
+import by.baykulbackend.database.dto.product.PartDto;
 import by.baykulbackend.database.dto.product.ProductDto;
 import by.baykulbackend.database.dto.security.Views;
 import by.baykulbackend.database.repository.product.IPartRepository;
-import by.baykulbackend.exceptions.NotFoundException;
 import by.baykulbackend.services.product.PartService;
 import by.baykulbackend.services.product.ProductCsvService;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -20,7 +20,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Parameters;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -58,7 +57,7 @@ public class PartRestController {
                     description = "Page of parts retrieved successfully",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = Page.class),
+                            schema = @Schema(implementation = PartDto.class),
                             examples = @ExampleObject(
                                     name = "All parts response example",
                                     summary = "List of all spare parts",
@@ -133,11 +132,10 @@ public class PartRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping
-    @JsonView(Views.PartView.Get.class)
-    public List<Part> getAll(
+    public List<PartDto> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iPartRepository.findAll(pageable).stream().toList();
+        return partService.getAllParts(pageable).stream().toList();
     }
 
     @Operation(
@@ -224,15 +222,14 @@ public class PartRestController {
     })
     @PreAuthorize("hasAnyAuthority('products:read')")
     @GetMapping("/id")
-    @JsonView(Views.PartView.Get.class)
-    public Part getOne(
+    public PartDto getOne(
             @Parameter(
                     description = "UUID of the part to retrieve",
                     required = true,
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
             @RequestParam UUID id) {
-        return iPartRepository.findById(id).orElseThrow(() -> new NotFoundException("Part not found"));
+        return partService.getPartById(id);
     }
 
     @Operation(

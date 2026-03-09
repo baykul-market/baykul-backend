@@ -4,21 +4,25 @@ import by.baykulbackend.database.dao.cart.Cart;
 import by.baykulbackend.database.dao.cart.CartProduct;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
+import by.baykulbackend.database.model.Permission;
 import by.baykulbackend.database.model.Role;
 import by.baykulbackend.database.repository.cart.ICartProductRepository;
 import by.baykulbackend.database.repository.cart.ICartRepository;
 import by.baykulbackend.database.repository.product.IPartRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.services.user.AuthService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -31,6 +35,29 @@ public class CartService {
     private final IUserRepository iUserRepository;
     private final IPartRepository iPartRepository;
     private final AuthService authService;
+    private final PriceService priceService;
+
+    public Cart getMy() {
+        User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+
+        Cart cart = iCartRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new NotFoundException("Cart not found"));
+
+        if (!user.getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
+            for (CartProduct cartProduct : cart.getCartProducts()) {
+                Part part = cartProduct.getPart();
+
+                boolean needsDelivery = part.getStorageCount() == null
+                        || cartProduct.getPartsCount() > part.getStorageCount();
+
+                part.setPrice(priceService.calculateProductPrice(part, needsDelivery));
+                part.setCurrency(priceService.getCurrency());
+            }
+        }
+
+        return cart;
+    }
 
     /**
      * Adds a part to a specific cart.

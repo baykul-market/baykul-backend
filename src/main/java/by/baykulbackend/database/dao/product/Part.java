@@ -1,5 +1,6 @@
 package by.baykulbackend.database.dao.product;
 
+import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dto.security.Views;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonView;

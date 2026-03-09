@@ -142,20 +142,6 @@ public class CurrencyExchangeService {
     }
 
     /**
-     * Exchanges given amount to Russian Rubles (RUB)
-     *
-     * @param valueToExchange amount to exchange
-     * @param currencyFrom source currency code
-     * @return exchanged amount in RUB
-     * @throws IllegalArgumentException if request is invalid
-     * @throws NotFoundException if exchange rate not found
-     */
-    @Transactional
-    public BigDecimal exchangeToRub(BigDecimal valueToExchange, Currency currencyFrom) {
-        return exchange(valueToExchange, currencyFrom, Currency.RUB);
-    }
-
-    /**
      * Exchanges given amount from one currency to another
      *
      * @param valueToExchange amount to exchange
@@ -177,11 +163,17 @@ public class CurrencyExchangeService {
 
         CurrencyExchange currencyExchange =
                 iCurrencyExchangeRepository.findByCurrencyFromAndCurrencyTo(currencyFrom, currencyTo)
-                        .orElseThrow(() -> new NotFoundException(
-                                String.format("Currency exchange not found for %s -> %s", currencyFrom.name(),
-                                        currencyTo.name())));
+                        .orElseThrow(
+                                () -> new NotFoundException(
+                                        String.format(
+                                                "Currency exchange not found for %s -> %s",
+                                                currencyFrom.name(),
+                                                currencyTo.name()
+                                        )
+                                )
+                        );
 
-        return valueToExchange.multiply(currencyExchange.getRate());
+        return valueToExchange.multiply(currencyExchange.getRate()).setScale(2, RoundingMode.HALF_UP);
     }
 
     /**

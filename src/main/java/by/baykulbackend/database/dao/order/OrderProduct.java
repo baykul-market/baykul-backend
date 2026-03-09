@@ -1,6 +1,7 @@
 package by.baykulbackend.database.dao.order;
 
 import by.baykulbackend.database.dao.bill.Bill;
+import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dto.security.Views;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
@@ -114,7 +115,7 @@ public class OrderProduct {
     private Integer partsCount;
 
     @Schema(
-            description = "Price value in russian rubles captured at time of order addition",
+            description = "Price value captured at time of order addition",
             requiredMode = Schema.RequiredMode.REQUIRED,
             accessMode = Schema.AccessMode.READ_ONLY,
             minimum = "0.00",
@@ -123,6 +124,16 @@ public class OrderProduct {
     @Column(name = "price", nullable = false)
     @JsonView(Views.OrderProductView.Get.class)
     private BigDecimal price;
+
+    @Schema(
+            description = "Price currency captured at time of order addition",
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            example = "RUB"
+    )
+    @Column(name = "currency", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @JsonView(Views.OrderProductView.Get.class)
+    private Currency currency;
 
     @Schema(
             description = "Bill associated with this order product",
