@@ -41,92 +41,6 @@ public class OrderProductRestController {
     private final IOrderProductRepository iOrderProductRepository;
 
     @Operation(
-            summary = "Get all order products without bill",
-            description = "Retrieves all order products without bill from the system " +
-                    "with pagination. Requires all-orders:write permission.",
-            security = @SecurityRequirement(name = "bearerAuth")
-    )
-    @Parameters({
-            @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
-            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
-            @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
-    })
-    @ApiResponses(value = {
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "List of orders retrieved successfully",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = Views.OrderView.Get.class)),
-                            examples = @ExampleObject(
-                                    name = "All orders response example",
-                                    summary = "List of all orders",
-                                    value = """
-                                            [
-                                              {
-                                                "id": "123e4567-e89b-12d3-a456-426614174001",
-                                                "createdTs": "2024-01-15T10:30:00",
-                                                "updatedTs": "2024-01-20T14:45:30",
-                                                "number": 100001,
-                                                "status": "ORDERED"
-                                              },
-                                              {
-                                                "id": "522t4767-e89b-12d3-a456-426614174563",
-                                                "createdTs": "2024-01-16T11:30:00",
-                                                "updatedTs": "2024-01-21T15:45:30",
-                                                "number": 100002,
-                                                "status": "ORDERED"
-                                              }
-                                            ]
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - JWT token missing or invalid",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Unauthorized example",
-                                    value = """
-                                        {
-                                          "error": "Unauthorized",
-                                          "message": "Full authentication is required to access this resource"
-                                        }
-                                        """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - insufficient permissions",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    name = "Forbidden example",
-                                    value = """
-                                        {
-                                          "error": "Forbidden",
-                                          "message": "Access Denied"
-                                        }
-                                        """
-                            )
-                    )
-            )
-    })
-    @GetMapping("/withoutBill")
-    @PreAuthorize("hasAnyAuthority('all-orders:read')")
-    @JsonView(Views.OrderProductView.Get.class)
-    public List<OrderProduct> getAllNotOrdered(
-            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
-        return iOrderProductRepository
-                .findAllByBillIsNullAndStatusIn(List.of(BoxStatus.ON_WAY, BoxStatus.TO_ORDER), pageable)
-                .stream().toList();
-    }
-
-    @Operation(
             summary = "Search order products",
             description = "Search for order products by number or status. If number is provided, status is ignored. " +
                     "If no parameters are provided, returns all order products. " +
@@ -136,8 +50,9 @@ public class OrderProductRestController {
     @Parameters({
             @Parameter(name = "number", description = "Order product number to search for (exact match)", example = "100001"),
             @Parameter(name = "status", description = "Order product status to filter by", example = "IN_WAREHOUSE"),
+            @Parameter(name = "forBill", description = "To get only products, that require bill", example = "true"),
             @Parameter(name = "page", description = "Page number (0-based, default: 0)", example = "0"),
-            @Parameter(name = "size", description = "Page size (default: 20)", example = "20"),
+            @Parameter(name = "size", description = "Page size (default: 50)", example = "50"),
             @Parameter(name = "sort", description = "Sort property and direction (e.g., createdTs,desc)", example = "createdTs,desc")
     })
     @ApiResponses(value = {
@@ -185,20 +100,13 @@ public class OrderProductRestController {
     @GetMapping("/search")
     @PreAuthorize("hasAnyAuthority('all-orders:read')")
     @JsonView(Views.OrderProductFullView.class)
-    public Page<OrderProduct> search(
+    public List<OrderProduct> search(
             @Parameter(hidden = true) @RequestParam(required = false) Long number,
             @Parameter(hidden = true) @RequestParam(required = false) BoxStatus status,
-            @PageableDefault(size = 20, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
+            @Parameter(hidden = true) @RequestParam(required = false) Boolean forBill,
+            @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        if (number != null) {
-            return iOrderProductRepository.findByNumber(number)
-                    .map(op -> (Page<OrderProduct>) new PageImpl<>(List.of(op)))
-                    .orElse(new PageImpl<>(Collections.emptyList()));
-        } else if (status != null) {
-            return iOrderProductRepository.findAllByStatus(status, pageable);
-        } else {
-            return iOrderProductRepository.findAll(pageable);
-        }
+        return orderService.searchOrderProducts(number, status, forBill, pageable).stream().toList();
     }
 
     @Operation(

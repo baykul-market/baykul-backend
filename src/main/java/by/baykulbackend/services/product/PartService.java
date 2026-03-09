@@ -214,8 +214,7 @@ public class PartService {
         boolean hasBrand = StringUtils.isNotBlank(brand);
 
         if (!hasArticle && !hasName && !hasBrand) {
-            Page<Part> parts = iPartRepository.findAll(pageable);
-            return parts;
+            return iPartRepository.findAll(pageable);
         }
 
         if (hasArticle && hasName && hasBrand) {

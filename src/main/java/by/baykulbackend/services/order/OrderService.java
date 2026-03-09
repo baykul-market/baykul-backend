@@ -23,6 +23,10 @@ import by.baykulbackend.services.balance.BalanceService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -362,6 +366,53 @@ public class OrderService {
         else if (anyOnWay) {
             order.setStatus(OrderStatus.ON_WAY);
         }
+    }
+
+    @Transactional
+    public Page<OrderProduct> searchOrderProducts(Long number, BoxStatus status, Boolean forBill, Pageable pageable) {
+        boolean hasNumber = number != null;
+        boolean hasStatus = status != null;
+        forBill = forBill != null ? forBill : false;
+
+        if (hasNumber && hasStatus && forBill) {
+            if (BoxStatus.requiredForBillCreation.contains(status)) {
+                return iOrderProductRepository.findAllByBillIsNullAndStatusAndNumberStartingWith(
+                        status,
+                        number.toString(),
+                        pageable
+                );
+            } else {
+                return new PageImpl<>(Collections.emptyList());
+            }
+        }
+        else if (hasNumber && hasStatus) {
+            return iOrderProductRepository.findAllByNumberStartingWithAndStatus(number.toString(), status, pageable);
+        }
+        else if (hasNumber && forBill) {
+            return iOrderProductRepository.findAllByBillIsNullAndStatusInAndNumberStartingWith(
+                    BoxStatus.requiredForBillCreation,
+                    number.toString(),
+                    pageable
+            );
+        }
+        else if (hasStatus && forBill) {
+            if (BoxStatus.requiredForBillCreation.contains(status)) {
+                return iOrderProductRepository.findAllByStatusAndBillIsNull(status, pageable);
+            } else {
+                return new PageImpl<>(Collections.emptyList());
+            }
+        }
+        else if (hasNumber) {
+            return iOrderProductRepository.findAllByNumberStartingWith(number.toString(), pageable);
+        }
+        else if (hasStatus) {
+            return iOrderProductRepository.findAllByStatus(status, pageable);
+        }
+        else if (forBill) {
+            return iOrderProductRepository.findAllByBillIsNullAndStatusIn(BoxStatus.requiredForBillCreation, pageable);
+        }
+
+        return iOrderProductRepository.findAll(pageable);
     }
 
     /**
