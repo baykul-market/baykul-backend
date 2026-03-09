@@ -93,5 +93,12 @@ public class Views {
     public interface BillFullView extends BillView.Get, OrderProductView.Get {}
 
     public interface BillCreateFullView extends BillView.Post, OrderProductView.Get {}
+
+    // Currency exchange views
+    public interface CurrencyExchangeView {
+        interface Get {}
+        interface Post {}
+        interface Patch {}
+    }
 }
 

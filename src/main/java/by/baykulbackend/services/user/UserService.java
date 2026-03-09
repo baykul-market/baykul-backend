@@ -84,7 +84,7 @@ public class UserService {
 
         iUserRepository.save(user);
         response.put("create_user", "true");
-        log.info("User {} has ben created.", user.getLogin());
+        log.info("User {} has been created.", user.getLogin());
 
         return ResponseEntity.ok(response);
     }
