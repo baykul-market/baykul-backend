@@ -1,0 +1,92 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: Baykul Web Application
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/baykul}
+    username: ${DATABASE_USER:baykul_user}
+    password: ${DATABASE_PASSWORD:baykul_pass}
+
+  jpa:
+    generate-ddl: false
+    show-sql: false
+    hibernate:
+      # NOTE: Be sure to replace with 'validate' in production
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 5000
+        order_inserts: true
+        order_updates: true
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 50MB
+      file-size-threshold: 2KB
+
+  main:
+    banner-mode: off
+
+jwt:
+  secret:
+    access: ${JWT_ACCESS_SECRET:FyGgATxvUgvZNgVvpIqsDvDxuhyHQTxVkBMoP1kXnCke1HJzz2Q70Uavl4tsejgBBzWsuIrIzXVpiWFKNQY+Ng==}
+    refresh: ${JWT_REFRESH_SECRET:vhvyF6Xx10wco5htwza5AU8NjH4lpTG5Q6zdLz4tpCUSJtHKnFvmoroCct3SxmQ5BtIlf7HDYDfuW6wB3bSecw==}
+
+logging:
+  file:
+    name: log/application.log
+  logback:
+    rollingpolicy:
+      clean-history-on-start: true
+  pattern:
+    console:
+  level:
+    root: INFO
+
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
+    filter: true
+    display-request-duration: true
+    default-model-expand-depth: 2
+    default-model-rendering: example
+  show-actuator: false
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+  paths-to-match:
+    - /api/**
+  packages-to-scan:
+    - by.baykulbackend.controller
+
+openapi:
+  title: Baykul Marketplace API
+  description: REST API documentation for Baykul Marketplace Platform
+  version: 1.0.0
+  contact:
+    name: ${OPENAPI_CONTACT_NAME:Baykul Support Team}
+    email: ${OPENAPI_CONTACT_EMAIL:support@baykul.com}
+    url: ${OPENAPI_CONTACT_URL:https://support.baykul.com}
+  license:
+    name: ${OPENAPI_LICENSE_NAME:Commercial License}
+    url: ${OPENAPI_LICENSE_URL:https://baykul.com/license}
+  terms-of-service: ${OPENAPI_TERMS:https://baykul.com/terms-and-conditions}
+  servers:
+    dev:
+      url: ${OPENAPI_DEV_URL:http://localhost:8080}
+      description: ${OPENAPI_DEV_DESC:Development Server}
+    production:
+      url: ${OPENAPI_PROD_URL:https://api.baykul.com}
+      description: ${OPENAPI_PROD_DESC:Production Server}

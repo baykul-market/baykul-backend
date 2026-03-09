@@ -1,11 +1,13 @@
-package by.baykulbackend.database.model;
+package by.baykulbackend.security;
 
+import by.baykulbackend.database.model.Role;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.util.Collection;
+import java.util.Collections;
 
 @Getter
 @Setter
@@ -13,10 +15,14 @@ public class JwtAuthentication implements Authentication {
     private boolean authenticated;
     private String login;
     private Role role;
-    private Long id;
+    private String id;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (role == null) {
+            return Collections.emptySet();
+        }
+
         return role.getAuthorities();
     }
 

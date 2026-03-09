@@ -1,6 +1,7 @@
 package by.baykulbackend.services.user;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.apache.commons.lang3.StringUtils;
@@ -14,7 +15,14 @@ public class RequestService {
     private final String LOCALHOST_IPV4 = "127.0.0.1";
     private final String LOCALHOST_IPV6 = "0:0:0:0:0:0:0:1";
 
-    public String getClientIp(HttpServletRequest request) {
+    /**
+     * Extracts the client's IP address from an HTTP request.
+     * Checks various headers in order of preference to handle proxy scenarios.
+     *
+     * @param request the HTTP request to extract IP from
+     * @return the client's IP address as a String
+     */
+    public String getClientIp(@NonNull HttpServletRequest request) {
         String ipAddress = request.getHeader("X-Forwarded-For");
 
         if(StringUtils.isBlank(ipAddress) || "unknown".equalsIgnoreCase(ipAddress)) {

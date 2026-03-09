@@ -23,11 +23,14 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/**",
-            "/api/users/registration",
-            "/api/users/registration/**",
+            "/api/v1/auth/**",
+            "/api/v1/users/registration",
+            "/api/v1/users/registration/**",
             "/swagger-ui/**",
+            "/swagger-ui.html",
             "/v3/api-docs/**",
+            "/api-docs/**",
+            "/api-docs.yaml",
             "/error",
             "/actuator/health"
     };
