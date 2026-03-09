@@ -2,6 +2,8 @@ package by.baykulbackend.database.dao.order;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.util.Set;
+
 @Schema(description = "Box status enum")
 public enum BoxStatus {
     CREATED,
@@ -13,6 +15,11 @@ public enum BoxStatus {
     DELIVERED,
     RETURNED,
     CANCELLED;
+
+    public static final Set<BoxStatus> requiredForBillCreation = Set.of(
+            TO_ORDER,
+            ON_WAY
+    );
 
     /**
      * Compares this status with another based on declaration order
