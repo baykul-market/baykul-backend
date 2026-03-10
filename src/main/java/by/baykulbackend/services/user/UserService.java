@@ -78,7 +78,7 @@ public class UserService {
         Balance balance = new Balance();
         balance.setUser(user);
         balance.setAccount(new BigDecimal("0.00"));
-        balance.setCurrency(priceService.getCurrency());
+        balance.setCurrency(priceService.getSystemCurrency());
         user.setBalance(balance);
 
         Cart cart = new Cart();

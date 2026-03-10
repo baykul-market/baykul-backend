@@ -19,8 +19,8 @@ import java.util.UUID;
 @JsonIdentityInfo(
         generator = ObjectIdGenerators.PropertyGenerator.class,
         property = "id")
-@Table(name = "price_config")
-public class PriceConfig {
+@Table(name = "delivery_cost_config")
+public class DeliveryCostConfig {
     @Schema(
             description = "Unique identifier",
             accessMode = Schema.AccessMode.READ_ONLY,
@@ -53,23 +53,33 @@ public class PriceConfig {
     private LocalDateTime updatedTs;
 
     @Schema(
-            description = "Default markup percentage for user purchases",
-            example = "0.10",
-            defaultValue = "0.10",
-            minimum = "0"
+            description = "Minimum sum of the order",
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            example = "1000.01",
+            minimum = "0.00"
     )
-    @Column(name = "markup_percentage", nullable = false)
+    @Column(name = "minimum_sum")
     @JsonView({Views.ConfigView.Get.class, Views.ConfigView.Post.class, Views.ConfigView.Patch.class})
-    private BigDecimal markupPercentage;
+    private BigDecimal minimumSum;
 
     @Schema(
-            description = "Default currency for all purchases",
-            example = "RUB",
-            defaultValue = "RUB",
-            enumAsRef = true
+            description = "Markup type",
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            example = "PERCENTAGE",
+            allowableValues = {"PERCENTAGE", "SUM"}
     )
+    @Column(name = "markup_type")
     @Enumerated(EnumType.STRING)
-    @Column(name = "currency", nullable = false)
     @JsonView({Views.ConfigView.Get.class, Views.ConfigView.Post.class, Views.ConfigView.Patch.class})
-    private Currency currency;
+    private DeliveryMarkupType markupType;
+
+    @Schema(
+            description = "Value of markup in system currency",
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            example = "0.1",
+            minimum = "0"
+    )
+    @Column(name = "value")
+    @JsonView({Views.ConfigView.Get.class, Views.ConfigView.Post.class, Views.ConfigView.Patch.class})
+    private BigDecimal value;
 }

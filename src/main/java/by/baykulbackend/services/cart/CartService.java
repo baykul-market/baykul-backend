@@ -52,7 +52,7 @@ public class CartService {
                         || cartProduct.getPartsCount() > part.getStorageCount();
 
                 part.setPrice(priceService.calculateProductPrice(part, needsDelivery));
-                part.setCurrency(priceService.getCurrency());
+                part.setCurrency(priceService.getSystemCurrency());
             }
         }
 
