@@ -25,8 +25,8 @@ public enum Permission {
     ALL_ORDER_WRITE("all-orders:write"),                    // Process/Cancel any order
     ALL_BILL_READ("all-bills:read"),                        // View all system bills
     ALL_BILL_WRITE("all-bills:write"),                      // Manage bills
-    CURRENCY_READ("currency:read"),                         // View all currency exchange rates
-    CURRENCY_WRITE("currency:write");                       // Manage currency exchange rates
+    PRICING_READ("pricing:read"),                           // View all currency exchange rates
+    PRICING_WRITE("pricing:write");                         // Manage currency exchange rates
 
     private final String permission;
 

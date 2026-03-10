@@ -100,5 +100,12 @@ public class Views {
         interface Post {}
         interface Patch {}
     }
+
+    // Price config views
+    public interface PriceConfigView {
+        interface Get {}
+        interface Post {}
+        interface Patch {}
+    }
 }
 

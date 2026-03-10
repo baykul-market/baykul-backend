@@ -9,6 +9,7 @@ import by.baykulbackend.database.dao.order.OrderStatus;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.balance.BalanceOperationDto;
+import by.baykulbackend.database.model.Permission;
 import by.baykulbackend.database.repository.cart.ICartProductRepository;
 import by.baykulbackend.database.repository.cart.ICartRepository;
 import by.baykulbackend.database.repository.order.IOrderProductRepository;
@@ -17,13 +18,14 @@ import by.baykulbackend.database.repository.product.IPartRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.BadRequestException;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.finance.CurrencyExchangeService;
+import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.services.user.AuthService;
 import by.baykulbackend.database.dao.balance.BalanceOperationType;
 import by.baykulbackend.services.balance.BalanceService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -48,6 +50,40 @@ public class OrderService {
     private final BalanceService balanceService;
 
     private static final Long START_ORDER_NUMBER = 100000L;
+    private final PriceService priceService;
+    private final CurrencyExchangeService currencyExchangeService;
+
+    public Order getMyById(UUID id) {
+        Order order = iOrderRepository.findByUserLoginAndId(authService.getAuthInfo().getPrincipal().toString(), id)
+                .orElseThrow(() -> new NotFoundException("Order not found"));
+
+        if (!getCurrentUser().getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
+            for (OrderProduct orderProduct : order.getOrderProducts()) {
+                orderProduct.getPart().setPrice(null);
+                orderProduct.getPart().setCurrency(null);
+            }
+        }
+
+        return order;
+    }
+
+    public List<Order> getMyAll(Pageable pageable) {
+        List<Order> orders = iOrderRepository.findByUserLogin(
+                authService.getAuthInfo().getPrincipal().toString(),
+                pageable
+        ).stream().toList();
+
+        if (!getCurrentUser().getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
+            for (Order order : orders) {
+                for (OrderProduct orderProduct : order.getOrderProducts()) {
+                    orderProduct.getPart().setPrice(null);
+                    orderProduct.getPart().setCurrency(null);
+                }
+            }
+        }
+
+        return orders;
+    }
 
     /**
      * Creates a new order from the user's cart.
@@ -357,6 +393,9 @@ public class OrderService {
         if (allCanceled) {
             order.setStatus(OrderStatus.CANCELLED);
         }
+        else if (allDelivered) {
+            order.setStatus(OrderStatus.COMPLETED);
+        }
         else if (allShipped) {
             order.setStatus(OrderStatus.READY_FOR_PICKUP);
         }
@@ -445,12 +484,16 @@ public class OrderService {
         List<OrderProduct> orderProducts = new ArrayList<>();
 
         for (CartProduct cartProduct : cart.getCartProducts()) {
+            boolean needsDelivery = cartProduct.getPart().getStorageCount() == null
+                    || cartProduct.getPartsCount() > cartProduct.getPart().getStorageCount();
+
             OrderProduct orderProduct = OrderProduct.builder()
                     .order(order)
                     .part(cartProduct.getPart())
                     .partsCount(cartProduct.getPartsCount())
                     .status(BoxStatus.CREATED)
-                    .price(BigDecimal.ZERO)                 // TODO: price settlement
+                    .price(priceService.calculateProductPrice(cartProduct.getPart(), needsDelivery))
+                    .currency(priceService.getCurrency())
                     .build();
 
             orderProducts.add(orderProduct);
@@ -552,8 +595,10 @@ public class OrderService {
         BalanceOperationDto balanceOperation = new BalanceOperationDto();
         balanceOperation.setUserId(order.getUser().getId().toString());
         balanceOperation.setAmount(amount);
+        balanceOperation.setCurrency(priceService.getCurrency());
         balanceOperation.setOperationType(BalanceOperationType.PAYMENT);
         balanceOperation.setDescription("Payment for order № " + order.getNumber());
+
         balanceService.processBalance(balanceOperation);
     }
 
@@ -591,10 +636,15 @@ public class OrderService {
             throw new BadRequestException("Order is already paid");
         }
 
-        BigDecimal totalOrderPrice = order.getOrderProducts().stream()
-                .map(OrderProduct::getPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalOrderPrice = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+
+        for (OrderProduct orderProduct : order.getOrderProducts()) {
+            totalOrderPrice = totalOrderPrice.add(
+                    currencyExchangeService.exchange(
+                            orderProduct.getPrice(), orderProduct.getCurrency(), priceService.getCurrency()
+                    ).multiply(BigDecimal.valueOf(orderProduct.getPartsCount()))
+            );
+        }
 
         processPayment(order, totalOrderPrice);
         order.setPaid(true);

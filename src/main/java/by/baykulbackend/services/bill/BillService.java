@@ -53,9 +53,11 @@ public class BillService {
         newBill.setStatus(BillStatus.DRAFT);
         newBill.setNumber(generateBillNumber());
 
+        iBillRepository.save(newBill);
+
         List<OrderProduct> orderProducts = new ArrayList<>();
 
-        if (bill.getOrderProducts() != null) {
+        if (bill.getOrderProducts() != null && !bill.getOrderProducts().isEmpty()) {
             List<UUID> unavailableOrderProductIds = new ArrayList<>();
 
             //noinspection SimplifyStreamApiCallChains
@@ -82,9 +84,6 @@ public class BillService {
             }
         }
 
-        newBill.setOrderProducts(orderProducts);
-        iBillRepository.save(newBill);
-
         if (!orderProducts.isEmpty()) {
             iOrderProductRepository.saveAll(orderProducts);
         }
@@ -92,7 +91,8 @@ public class BillService {
         response.put("create_bill", "true");
         response.put("id", newBill.getId().toString());
 
-        log.info("Bill {} created -> {}", newBill.getId(), authService.getAuthInfo().getPrincipal());
+        log.info("Bill {} created with {} order products -> {}",
+                newBill.getId(), orderProducts.size(), authService.getAuthInfo().getPrincipal());
 
         return ResponseEntity.ok(response);
     }

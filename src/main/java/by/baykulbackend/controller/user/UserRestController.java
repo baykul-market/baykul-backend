@@ -132,7 +132,7 @@ public class UserRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('users:read')")
-    @JsonView(Views.UserView.Get.class)
+    @JsonView(Views.UserAdminView.class)
     @GetMapping
     public List<User> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
@@ -238,7 +238,7 @@ public class UserRestController {
             )
     })
     @PreAuthorize("hasAnyAuthority('users:read')")
-    @JsonView(Views.UserFullView.class)
+    @JsonView(Views.UserAdminView.class)
     @GetMapping("/id")
     public User getOne(
             @Parameter(

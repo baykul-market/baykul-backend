@@ -6,6 +6,7 @@ import by.baykulbackend.database.dto.balance.BalanceOperationDto;
 import by.baykulbackend.database.repository.balance.IBalanceRepository;
 import by.baykulbackend.exceptions.BadRequestException;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.finance.CurrencyExchangeService;
 import by.baykulbackend.services.user.AuthService;
 import jakarta.transaction.Transactional;
 import lombok.NonNull;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class BalanceService {
     private final IBalanceRepository iBalanceRepository;
     private final AuthService authService;
+    private final CurrencyExchangeService currencyExchangeService;
 
     /**
      * Processes a balance operation.
@@ -34,9 +36,10 @@ public class BalanceService {
      */
     @Transactional
     public void processBalance(@NonNull BalanceOperationDto balanceOperation) {
-        log.info("Processing balance operation {}, amount {}, balanceId {}, userId {} -> {}",
-                balanceOperation.getOperationType(), balanceOperation.getAmount(), balanceOperation.getBalanceId(),
-                balanceOperation.getUserId(), authService.getAuthInfo().getPrincipal().toString());
+        log.info("Processing balance operation {}, amount {}, currency {}, balanceId {}, userId {} -> {}",
+                balanceOperation.getOperationType(), balanceOperation.getAmount(), balanceOperation.getCurrency(),
+                balanceOperation.getBalanceId(), balanceOperation.getUserId(),
+                authService.getAuthInfo().getPrincipal().toString());
 
         if (balanceOperation.getAmount().compareTo(BigDecimal.ZERO) < 0) {
             throw new BadRequestException("Operation amount must not be less than zero");
@@ -77,14 +80,17 @@ public class BalanceService {
 
         BigDecimal currentAccount = balance.getAccount();
         BigDecimal newAccount;
+        BigDecimal amountToProcess = currencyExchangeService.exchange(
+                balanceOperation.getAmount(), balanceOperation.getCurrency(), balance.getCurrency()
+        );
 
         switch (balanceOperation.getOperationType()) {
-            case REPLENISHMENT -> newAccount = currentAccount.add(balanceOperation.getAmount());
+            case REPLENISHMENT -> newAccount = currentAccount.add(amountToProcess);
             case PAYMENT, WITHDRAWAL -> {
-                if (currentAccount.compareTo(balanceOperation.getAmount()) < 0) {
+                if (currentAccount.compareTo(amountToProcess) < 0) {
                     throw new BadRequestException("Insufficient funds");
                 }
-                newAccount = currentAccount.subtract(balanceOperation.getAmount());
+                newAccount = currentAccount.subtract(amountToProcess);
             }
             default -> {
                 log.warn("Invalid balance operation while processing balance {} -> {}",
@@ -96,7 +102,9 @@ public class BalanceService {
         BalanceHistory balanceHistory = new BalanceHistory();
         balanceHistory.setBalance(balance);
         balanceHistory.setAmount(balanceOperation.getAmount());
+        balanceHistory.setCurrency(balanceOperation.getCurrency());
         balanceHistory.setResultAccount(newAccount);
+        balanceHistory.setResultCurrency(balance.getCurrency());
         balanceHistory.setOperationType(balanceOperation.getOperationType());
         balanceHistory.setDescription(balanceOperation.getDescription());
 
@@ -104,8 +112,9 @@ public class BalanceService {
         balance.getBalanceHistoryList().add(balanceHistory);
         iBalanceRepository.save(balance);
         
-        log.info("Successfully processed balance operation {}, amount {}, balanceId {}, userId {} -> {}",
-                balanceOperation.getOperationType(), balanceOperation.getAmount(), balanceOperation.getBalanceId(),
-                balanceOperation.getUserId(), authService.getAuthInfo().getPrincipal().toString());
+        log.info("Successfully processed balance operation {}, amount {}, currency {}, balanceId {}, userId {} -> {}",
+                balanceOperation.getOperationType(), balanceOperation.getAmount(), balanceOperation.getCurrency(),
+                balanceOperation.getBalanceId(), balanceOperation.getUserId(),
+                authService.getAuthInfo().getPrincipal().toString());
     }
 }

@@ -1,5 +1,6 @@
 package by.baykulbackend.database.dao.balance;
 
+import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.security.Views;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
@@ -69,11 +70,22 @@ public class Balance {
     @Schema(
             description = "Balance account",
             accessMode = Schema.AccessMode.READ_ONLY,
-            example = "1200.84"
+            example = "1200.84",
+            minimum = "0"
     )
     @Column(name = "account", nullable = false)
     @JsonView({Views.BalanceView.Get.class})
     private BigDecimal account;
+
+    @Schema(
+            description = "Balance account currency",
+            accessMode = Schema.AccessMode.READ_ONLY,
+            example = "RUB"
+    )
+    @Column(name = "currency", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @JsonView(Views.BalanceView.Get.class)
+    private Currency currency;
 
     @Schema(
             description = "List of balance operations history associated with that balance",

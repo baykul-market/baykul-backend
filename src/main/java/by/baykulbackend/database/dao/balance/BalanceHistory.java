@@ -1,5 +1,6 @@
 package by.baykulbackend.database.dao.balance;
 
+import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dto.security.Views;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -75,6 +76,16 @@ public class BalanceHistory {
     private BigDecimal amount;
 
     @Schema(
+            description = "Transaction amount",
+            accessMode = Schema.AccessMode.READ_ONLY,
+            example = "RUB"
+    )
+    @Column(name = "currency", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @JsonView(Views.BalanceHistoryView.Get.class)
+    private Currency currency;
+
+    @Schema(
             description = "Operation type",
             allowableValues = {"REPLENISHMENT", "WITHDRAWAL", "PAYMENT"},
             accessMode = Schema.AccessMode.READ_ONLY,
@@ -90,9 +101,19 @@ public class BalanceHistory {
             accessMode = Schema.AccessMode.READ_ONLY,
             example = "200.00"
     )
-    @Column(name = "result_account")
+    @Column(name = "result_account", nullable = false)
     @JsonView(Views.BalanceHistoryView.Get.class)
     private BigDecimal resultAccount;
+
+    @Schema(
+            description = "Result balance currency after performing operation",
+            accessMode = Schema.AccessMode.READ_ONLY,
+            example = "RUB"
+    )
+    @Column(name = "result_currency", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @JsonView(Views.BalanceHistoryView.Get.class)
+    private Currency resultCurrency;
 
     @Schema(
             description = "Description of operation",

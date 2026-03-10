@@ -9,6 +9,7 @@ import by.baykulbackend.database.model.Role;
 import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.utils.Validator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class UserService {
     private final IRefreshTokenRepository iRefreshTokenRepository;
     private final AuthService authService;
     private final PasswordEncoderConfig passwordEncoderConfig;
+    private final PriceService priceService;
 
     /**
      * Creates a new user in the system.
@@ -76,11 +78,14 @@ public class UserService {
         Balance balance = new Balance();
         balance.setUser(user);
         balance.setAccount(new BigDecimal("0.00"));
+        balance.setCurrency(priceService.getCurrency());
         user.setBalance(balance);
 
         Cart cart = new Cart();
         cart.setUser(user);
         user.setCart(cart);
+
+        user.setMarkupPercentage(priceService.getMarkupPercentage());
 
         iUserRepository.save(user);
         response.put("create_user", "true");
@@ -121,6 +126,7 @@ public class UserService {
         return ResponseEntity.ok(response);
     }
 
+    // TODO: separate from main update logic and add validation
     /**
      * Updates an existing user's information taking user to update from authentication principal.
      * Only updates non-null fields from the provided user object.
@@ -229,6 +235,22 @@ public class UserService {
             }
 
             log.info("The blocked of User with the id {} has been updated -> {}",
+                    id, authService.getAuthInfo().getPrincipal());
+        }
+
+        if (user.getCanPayLater() != null && user.getCanPayLater() != userFromDB.getCanPayLater()) {
+            userFromDB.setCanPayLater(user.getCanPayLater());
+            log.info("User's canPayLater param with id {} has been updated -> {}",
+                    id, authService.getAuthInfo().getPrincipal());
+        }
+
+        if (user.getMarkupPercentage() != null && !user.getMarkupPercentage().equals(userFromDB.getMarkupPercentage())) {
+            if (user.getMarkupPercentage().compareTo(BigDecimal.ZERO) < 0) {
+                response.put("error_markup_percentage", "Markup percentage must not be negative");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+            userFromDB.setMarkupPercentage(user.getMarkupPercentage());
+            log.info("User's markup percentage param with id {} has been updated -> {}",
                     id, authService.getAuthInfo().getPrincipal());
         }
 

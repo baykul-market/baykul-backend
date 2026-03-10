@@ -1,6 +1,6 @@
 package by.baykulbackend.services.product;
 
-import by.baykulbackend.database.dao.product.Currency;
+import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dto.product.ProductDto;
 import by.baykulbackend.database.repository.product.IPartRepository;

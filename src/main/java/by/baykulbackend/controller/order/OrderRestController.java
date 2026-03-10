@@ -158,6 +158,8 @@ public class OrderRestController {
                                                   "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                   "number": null,
                                                   "status": "TO_ORDER",
+                                                  "price": 7862.43,
+                                                  "currency": "EUR",
                                                   "part": {
                                                     "id": "63e9276f-ccce-45a7-9c28-e1ce24354eea",
                                                     "article": "2405947",

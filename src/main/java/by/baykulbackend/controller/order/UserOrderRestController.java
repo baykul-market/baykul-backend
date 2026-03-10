@@ -2,8 +2,6 @@ package by.baykulbackend.controller.order;
 
 import by.baykulbackend.database.dao.order.Order;
 import by.baykulbackend.database.dto.security.Views;
-import by.baykulbackend.exceptions.NotFoundException;
-import by.baykulbackend.database.repository.order.IOrderRepository;
 import by.baykulbackend.services.order.OrderService;
 import by.baykulbackend.services.user.AuthService;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -35,7 +33,6 @@ import java.util.UUID;
 @Tag(name = "User's orders", description = "User's orders management")
 public class UserOrderRestController {
     private final OrderService orderService;
-    private final IOrderRepository iOrderRepository;
     private final AuthService authService;
 
     @Operation(
@@ -76,6 +73,8 @@ public class UserOrderRestController {
                                                     "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                     "number": null,
                                                     "status": "TO_ORDER",
+                                                    "price": 7862.43,
+                                                    "currency": "EUR",
                                                     "part": {
                                                       "id": "63e9276f-ccce-45a7-9c28-e1ce24354eea",
                                                       "article": "2405947",
@@ -84,8 +83,6 @@ public class UserOrderRestController {
                                                       "minCount": 3,
                                                       "storageCount": 5,
                                                       "returnPart": 3.01,
-                                                      "price": 7862.43,
-                                                      "currency": "EUR",
                                                       "brand": "rolls royce"
                                                     },
                                                     "partsCount": 3
@@ -136,10 +133,7 @@ public class UserOrderRestController {
     public List<Order> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iOrderRepository.findByUserLogin(
-                authService.getAuthInfo().getPrincipal().toString(),
-                pageable
-        ).stream().toList();
+        return orderService.getMyAll(pageable);
     }
 
     @Operation(
@@ -174,6 +168,8 @@ public class UserOrderRestController {
                                                   "id": "30e9276f-ccce-45a7-9c28-e1ce22254eea",
                                                   "number": null,
                                                   "status": "TO_ORDER",
+                                                  "price": 7862.43,
+                                                  "currency": "EUR",
                                                   "part": {
                                                     "id": "63e9276f-ccce-45a7-9c28-e1ce24354eea",
                                                     "article": "2405947",
@@ -182,8 +178,6 @@ public class UserOrderRestController {
                                                     "minCount": 3,
                                                     "storageCount": 5,
                                                     "returnPart": 3.01,
-                                                    "price": 7862.43,
-                                                    "currency": "EUR",
                                                     "brand": "rolls royce"
                                                   },
                                                   "partsCount": 3
@@ -252,8 +246,7 @@ public class UserOrderRestController {
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
             @RequestParam UUID id) {
-        return iOrderRepository.findByUserLoginAndId(authService.getAuthInfo().getPrincipal().toString(), id)
-                .orElseThrow(() -> new NotFoundException("Order not found"));
+        return orderService.getMyById(id);
     }
 
     @Operation(

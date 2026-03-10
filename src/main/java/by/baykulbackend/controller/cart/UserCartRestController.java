@@ -3,8 +3,6 @@ package by.baykulbackend.controller.cart;
 import by.baykulbackend.database.dao.cart.Cart;
 import by.baykulbackend.database.dao.cart.CartProduct;
 import by.baykulbackend.database.dto.security.Views;
-import by.baykulbackend.database.repository.cart.ICartRepository;
-import by.baykulbackend.exceptions.NotFoundException;
 import by.baykulbackend.services.cart.CartService;
 import by.baykulbackend.services.user.AuthService;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -30,7 +28,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Tag(name = "User's cart", description = "User's cart management")
 public class UserCartRestController {
-    private final ICartRepository iCartRepository;
     private final CartService cartService;
     private final AuthService authService;
 
@@ -133,8 +130,7 @@ public class UserCartRestController {
     @PreAuthorize("hasAnyAuthority('my-cart:read')")
     @JsonView(Views.CartFullView.class)
     public Cart get() {
-        return iCartRepository.findByUserLogin(authService.getAuthInfo().getPrincipal().toString())
-                .orElseThrow(() -> new NotFoundException("Cart not found"));
+        return cartService.getMy();
     }
 
     @Operation(

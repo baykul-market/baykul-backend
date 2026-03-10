@@ -1,6 +1,7 @@
 package by.baykulbackend.database.dto.balance;
 
 import by.baykulbackend.database.dao.balance.BalanceOperationType;
+import by.baykulbackend.database.dao.finance.Currency;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -17,6 +18,7 @@ import java.math.BigDecimal;
                 {
                     "userId": "123e4567-e89b-12d3-a456-426614174001",
                     "amount": 120.00,
+                    "currency": "RUB",
                     "operationType": "PAYMENT",
                     "description": "Payment of penalties"
                 }
@@ -25,6 +27,7 @@ import java.math.BigDecimal;
                 {
                     "balanceId": "123e4567-e89b-12d3-a456-426614174001",
                     "amount": 340.20,
+                    "currency": "RUB",
                     "operationType": "REPLENISHMENT"
                 }
                 """
@@ -53,6 +56,14 @@ public class BalanceOperationDto {
     )
     @NotNull
     private BigDecimal amount;
+
+    @Schema(
+            description = "Operation currency.",
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            example = "RUB"
+    )
+    @NotNull
+    private Currency currency;
 
     @Schema(
             description = "Operation type.",
