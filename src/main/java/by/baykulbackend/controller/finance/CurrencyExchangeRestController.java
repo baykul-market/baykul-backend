@@ -37,7 +37,7 @@ public class CurrencyExchangeRestController {
     @Operation(
             summary = "Get all currency exchanges",
             description = "Retrieves all currency exchange rates from the system. " +
-                    "Requires currency:read permission.",
+                    "Requires pricing:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -106,7 +106,7 @@ public class CurrencyExchangeRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('currency:read')")
+    @PreAuthorize("hasAnyAuthority('pricing:read')")
     @GetMapping
     @JsonView(Views.CurrencyExchangeView.Get.class)
     public List<CurrencyExchange> getAll() {
@@ -116,7 +116,7 @@ public class CurrencyExchangeRestController {
     @Operation(
             summary = "Get currency exchange by ID",
             description = "Retrieves a specific currency exchange rate by UUID. " +
-                    "Requires currency:read permission.",
+                    "Requires pricing:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -190,7 +190,7 @@ public class CurrencyExchangeRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('currency:read')")
+    @PreAuthorize("hasAnyAuthority('pricing:read')")
     @JsonView(Views.CurrencyExchangeView.Get.class)
     @GetMapping("/id")
     public CurrencyExchange getOne(
@@ -208,7 +208,7 @@ public class CurrencyExchangeRestController {
             summary = "Get all available currencies",
             description = "Retrieves list of all supported currencies with their details. " +
                     "Returns currency codes, Russian names, and countries of use. " +
-                    "Requires currency:read permission.",
+                    "Requires pricing:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -276,7 +276,7 @@ public class CurrencyExchangeRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('currency:read')")
+    @PreAuthorize("hasAnyAuthority('pricing:read')")
     @GetMapping("/currency")
     public List<CurrencyDto> getCurrencies() {
         return currencyExchangeService.getAllCurrencies();
@@ -286,7 +286,7 @@ public class CurrencyExchangeRestController {
             summary = "Create or update currency exchange",
             description = "Creates a new currency exchange rate or updates an existing one. " +
                     "Can create exchange rate in both directions simultaneously. " +
-                    "Requires currency:write permission.",
+                    "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Currency exchange data to create or update",
@@ -415,7 +415,7 @@ public class CurrencyExchangeRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('currency:write')")
+    @PreAuthorize("hasAnyAuthority('pricing:write')")
     @PostMapping
     public ResponseEntity<?> createUpdate(@RequestBody CurrencyExchangeDto currencyExchangeDto) {
         return currencyExchangeService.createUpdateCurrencyExchange(currencyExchangeDto);
@@ -424,7 +424,7 @@ public class CurrencyExchangeRestController {
     @Operation(
             summary = "Delete currency exchange",
             description = "Deletes a currency exchange rate by ID. " +
-                    "Requires currency:write permission.",
+                    "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -492,7 +492,7 @@ public class CurrencyExchangeRestController {
                     )
             )
     })
-    @PreAuthorize("hasAnyAuthority('currency:write')")
+    @PreAuthorize("hasAnyAuthority('pricing:write')")
     @DeleteMapping
     public ResponseEntity<?> delete(
             @Parameter(

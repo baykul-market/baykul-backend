@@ -126,6 +126,7 @@ public class UserService {
         return ResponseEntity.ok(response);
     }
 
+    // TODO: separate from main update logic and add validation
     /**
      * Updates an existing user's information taking user to update from authentication principal.
      * Only updates non-null fields from the provided user object.
@@ -234,6 +235,22 @@ public class UserService {
             }
 
             log.info("The blocked of User with the id {} has been updated -> {}",
+                    id, authService.getAuthInfo().getPrincipal());
+        }
+
+        if (user.getCanPayLater() != null && user.getCanPayLater() != userFromDB.getCanPayLater()) {
+            userFromDB.setCanPayLater(user.getCanPayLater());
+            log.info("User's canPayLater param with id {} has been updated -> {}",
+                    id, authService.getAuthInfo().getPrincipal());
+        }
+
+        if (user.getMarkupPercentage() != null && !user.getMarkupPercentage().equals(userFromDB.getMarkupPercentage())) {
+            if (user.getMarkupPercentage().compareTo(BigDecimal.ZERO) < 0) {
+                response.put("error_markup_percentage", "Markup percentage must not be negative");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            }
+            userFromDB.setMarkupPercentage(user.getMarkupPercentage());
+            log.info("User's markup percentage param with id {} has been updated -> {}",
                     id, authService.getAuthInfo().getPrincipal());
         }
 

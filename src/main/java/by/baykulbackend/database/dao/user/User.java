@@ -140,7 +140,7 @@ public class User {
             minimum = "0"
     )
     @Column(name = "markup_percentage", nullable = false)
-    @JsonView(Views.UserView.Patch.class)
+    @JsonView({Views.UserAdminView.class, Views.UserView.Post.class, Views.UserView.Patch.class})
     private BigDecimal markupPercentage;
 
     @Schema(
