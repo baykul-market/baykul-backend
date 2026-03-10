@@ -493,7 +493,7 @@ public class OrderService {
                     .partsCount(cartProduct.getPartsCount())
                     .status(BoxStatus.CREATED)
                     .price(priceService.calculateProductPrice(cartProduct.getPart(), needsDelivery))
-                    .currency(priceService.getCurrency())
+                    .currency(priceService.getSystemCurrency())
                     .build();
 
             orderProducts.add(orderProduct);
@@ -595,7 +595,7 @@ public class OrderService {
         BalanceOperationDto balanceOperation = new BalanceOperationDto();
         balanceOperation.setUserId(order.getUser().getId().toString());
         balanceOperation.setAmount(amount);
-        balanceOperation.setCurrency(priceService.getCurrency());
+        balanceOperation.setCurrency(priceService.getSystemCurrency());
         balanceOperation.setOperationType(BalanceOperationType.PAYMENT);
         balanceOperation.setDescription("Payment for order № " + order.getNumber());
 
@@ -641,7 +641,7 @@ public class OrderService {
         for (OrderProduct orderProduct : order.getOrderProducts()) {
             totalOrderPrice = totalOrderPrice.add(
                     currencyExchangeService.exchange(
-                            orderProduct.getPrice(), orderProduct.getCurrency(), priceService.getCurrency()
+                            orderProduct.getPrice(), orderProduct.getCurrency(), priceService.getSystemCurrency()
                     ).multiply(BigDecimal.valueOf(orderProduct.getPartsCount()))
             );
         }

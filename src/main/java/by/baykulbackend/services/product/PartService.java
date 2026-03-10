@@ -339,7 +339,7 @@ public class PartService {
             currency = part.getCurrency();
         } else {
             price = priceService.calculateProductPrice(part, part.getStorageCount() == null || part.getStorageCount() == 0);
-            currency = priceService.getCurrency();
+            currency = priceService.getSystemCurrency();
         }
 
         return PartDto.builder()

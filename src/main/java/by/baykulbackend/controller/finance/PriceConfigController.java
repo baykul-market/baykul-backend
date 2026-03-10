@@ -1,10 +1,10 @@
 package by.baykulbackend.controller.finance;
 
+import by.baykulbackend.database.dto.finance.DeliveryCostConfigDto;
 import by.baykulbackend.database.dto.finance.PriceConfigDto;
-import by.baykulbackend.database.dto.security.Views;
 import by.baykulbackend.services.finance.PriceService;
-import com.fasterxml.jackson.annotation.JsonView;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -18,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/v1/price-config")
 @RequiredArgsConstructor
@@ -26,60 +28,47 @@ public class PriceConfigController {
     private final PriceService priceService;
 
     @Operation(
-            summary = "Get price configuration",
-            description = "Retrieves the global price configuration with delivery percentage, markup percentage and currency. " +
-                    "Requires pricing:read permission.",
+            summary = "Get all configurations",
+            description = "Retrieves markup percentage, system currency and delivery cost rules. Requires pricing:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "Configuration retrieved successfully",
+                    description = "Configurations retrieved successfully",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PriceConfigDto.class),
                             examples = @ExampleObject(
                                     value = """
                                             {
-                                              "deliveryPercentage": 0.10,
                                               "markupPercentage": 0.10,
-                                              "currency": "RUB"
+                                              "systemCurrency": "RUB",
+                                              "deliveryCostConfigs": [
+                                                {
+                                                  "id": "123e4567-e89b-12d3-a456-426614174001",
+                                                  "minimumSum": 0,
+                                                  "markupType": "PERCENTAGE",
+                                                  "value": 0.10
+                                                }
+                                              ]
                                             }
                                             """
                             )
                     )
             ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - JWT token missing or invalid",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = @ExampleObject(
-                                    value = """
-                                            {
-                                              "error": "Unauthorized",
-                                              "message": "Full authentication is required to access this resource"
-                                            }
-                                            """
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - insufficient permissions"
-            )
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
     })
     @PreAuthorize("hasAnyAuthority('pricing:read')")
     @GetMapping
-    @JsonView(Views.PriceConfigView.Get.class)
-    public PriceConfigDto getConfig() {
-        return priceService.getConfig();
+    public PriceConfigDto getAllConfigs() {
+        return priceService.getAllConfigs();
     }
 
     @Operation(
-            summary = "Update price configuration",
-            description = "Updates the global price configuration. All fields are optional - only provided fields will be updated. " +
-                    "If configuration doesn't exist, creates new one with defaults for missing fields. " +
+            summary = "Update base configuration",
+            description = "Updates markup percentage and/or system currency. All fields are optional. " +
                     "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
@@ -92,85 +81,112 @@ public class PriceConfigController {
                             examples = @ExampleObject(
                                     value = """
                                             {
-                                              "update_price_config": "true"
+                                              "update_base_config": "true"
                                             }
                                             """
                             )
                     )
             ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Bad request - invalid configuration data",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            examples = {
-                                    @ExampleObject(
-                                            name = "Invalid delivery percentage",
-                                            value = """
-                                                    {
-                                                      "error_delivery_percentage": "Delivery percentage must be greater than or equal to zero"
-                                                    }
-                                                    """
-                                    ),
-                                    @ExampleObject(
-                                            name = "Invalid markup percentage",
-                                            value = """
-                                                    {
-                                                      "error_markup_percentage": "Markup percentage must be greater than or equal to zero"
-                                                    }
-                                                    """
-                                    )
-                            }
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - JWT token missing or invalid"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - insufficient permissions"
-            )
+            @ApiResponse(responseCode = "400", description = "Bad request - invalid data"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
     })
     @PreAuthorize("hasAnyAuthority('pricing:write')")
-    @PutMapping
-    public ResponseEntity<?> updateConfig(@RequestBody PriceConfigDto configDto) {
-        return priceService.updateConfig(configDto);
+    @PutMapping("/base")
+    public ResponseEntity<?> updateBaseConfig(@RequestBody PriceConfigDto configDto) {
+        return priceService.updateBaseConfig(configDto);
     }
 
     @Operation(
-            summary = "Reset price configuration to default",
-            description = "Resets the global price configuration to default values (10% delivery, 10% markup, RUB currency). " +
+            summary = "Create or update delivery cost rule",
+            description = "Creates new or updates existing delivery cost rule. " +
+                    "For SUM type, currency is required. Requires pricing:write permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Rule saved successfully",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "save_delivery_rule": "true",
+                                              "id": "123e4567-e89b-12d3-a456-426614174003"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(responseCode = "400", description = "Bad request - invalid rule data"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Rule not found")
+    })
+    @PreAuthorize("hasAnyAuthority('pricing:write')")
+    @PostMapping("/delivery-rule")
+    public ResponseEntity<?> saveDeliveryRule(@RequestBody DeliveryCostConfigDto dto) {
+        return priceService.saveDeliveryCostRule(dto);
+    }
+
+    @Operation(
+            summary = "Delete delivery cost rule",
+            description = "Deletes a delivery cost rule by ID. Requires pricing:write permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Rule deleted successfully",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "delete_delivery_rule": "true"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "Rule not found")
+    })
+    @PreAuthorize("hasAnyAuthority('pricing:write')")
+    @DeleteMapping("/delivery-rule")
+    public ResponseEntity<?> deleteDeliveryRule(@Parameter(description = "UUID of delivery rule") @RequestParam UUID id) {
+        return priceService.deleteDeliveryCostRule(id);
+    }
+
+    @Operation(
+            summary = "Reset all configurations to default",
+            description = "Resets markup percentage, currency and delivery rules to default values. " +
                     "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "Configuration reset successfully",
+                    description = "All configurations reset successfully",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             examples = @ExampleObject(
                                     value = """
                                             {
-                                              "reset_price_config": "true"
+                                              "reset_all_configs": "true"
                                             }
                                             """
                             )
                     )
             ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Unauthorized - JWT token missing or invalid"
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "Forbidden - insufficient permissions"
-            )
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
     })
     @PreAuthorize("hasAnyAuthority('pricing:write')")
     @PostMapping("/reset")
-    public ResponseEntity<?> resetConfig() {
-        return priceService.resetToDefault();
+    public ResponseEntity<?> resetAllConfigs() {
+        return priceService.resetAllToDefault();
     }
 }

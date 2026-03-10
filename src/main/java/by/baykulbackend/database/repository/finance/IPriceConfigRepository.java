@@ -12,7 +12,4 @@ import java.util.UUID;
 public interface IPriceConfigRepository extends JpaRepository<PriceConfig, UUID> {
     @Query("SELECT pc FROM PriceConfig pc ORDER BY pc.createdTs DESC LIMIT 1")
     Optional<PriceConfig> findFirst();
-
-    @Query("SELECT COUNT(pc) > 0 FROM PriceConfig pc")
-    boolean existsAny();
 }
