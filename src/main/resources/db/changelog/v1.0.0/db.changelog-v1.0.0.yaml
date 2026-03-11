@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: amir_home
+      comment: "Initial database schema"
+      changes:
+        - sqlFile:
+            path: classpath:db/changelog/v1.0.0/sql/01-create-initial-schema.sql
+            splitStatements: true
+            stripComments: true
