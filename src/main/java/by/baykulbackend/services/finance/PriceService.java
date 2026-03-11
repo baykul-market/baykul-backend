@@ -97,38 +97,57 @@ public class PriceService {
     }
 
     /**
-     * Creates or updates delivery cost rule.
+     * Updates delivery cost rule.
      * For SUM type, currency is required and defaults to system currency if not provided.
      *
      * @param dto Delivery cost rule data
      * @return ResponseEntity with success/error message
      */
     @Transactional
-    public ResponseEntity<?> saveDeliveryCostRule(DeliveryCostConfigDto dto) {
+    public ResponseEntity<?> createDeliveryCostRule(DeliveryCostConfigDto dto) {
         Map<String, Object> response = new HashMap<>();
 
-        if (dto.getMinimumSum() == null || dto.getMinimumSum().compareTo(BigDecimal.ZERO) < 0) {
-            response.put("error", "Minimum sum must be greater than or equal to zero");
+        if (isNotValidDeliveryCostConfigDto(dto, response)) {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
-        if (dto.getMarkupType() == null) {
-            response.put("error", "Markup type must not be empty");
+        DeliveryCostConfig config = new DeliveryCostConfig();
+
+        config.setMinimumSum(dto.getMinimumSum());
+        config.setMarkupType(dto.getMarkupType());
+        config.setValue(dto.getValue());
+
+        iDeliveryCostConfigRepository.save(config);
+
+        response.put("save_delivery_rule", "true");
+        response.put("id", config.getId().toString());
+        log.info("Delivery cost rule saved by user: {}", authService.getAuthInfo().getPrincipal());
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Updates delivery cost rule.
+     * For SUM type, currency is required and defaults to system currency if not provided.
+     *
+     * @param dto Delivery cost rule data
+     * @return ResponseEntity with success/error message
+     */
+    @Transactional
+    public ResponseEntity<?> updateDeliveryCostRule(DeliveryCostConfigDto dto) {
+        Map<String, Object> response = new HashMap<>();
+
+        if (dto.getId() == null) {
+            response.put("error", "Id must not be null");
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
-        if (dto.getValue() == null || dto.getValue().compareTo(BigDecimal.ZERO) < 0) {
-            response.put("error", "Value must be greater than or equal to zero");
+        if (isNotValidDeliveryCostConfigDto(dto, response)) {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
-        DeliveryCostConfig config;
-        if (dto.getId() != null) {
-            config = iDeliveryCostConfigRepository.findById(dto.getId())
-                    .orElseThrow(() -> new NotFoundException("Delivery cost rule not found"));
-        } else {
-            config = new DeliveryCostConfig();
-        }
+        DeliveryCostConfig config = iDeliveryCostConfigRepository.findById(dto.getId())
+                .orElseThrow(() -> new NotFoundException("Delivery cost rule not found"));
 
         config.setMinimumSum(dto.getMinimumSum());
         config.setMarkupType(dto.getMarkupType());
@@ -297,5 +316,29 @@ public class PriceService {
         dto.setValue(config.getValue());
 
         return dto;
+    }
+
+    private boolean isNotValidDeliveryCostConfigDto(DeliveryCostConfigDto dto, Map<String, Object> response) {
+        if (dto.getMinimumSum() == null || dto.getMinimumSum().compareTo(BigDecimal.ZERO) < 0) {
+            response.put("error", "Minimum sum must be greater than or equal to zero");
+            return true;
+        }
+
+        if (dto.getMarkupType() == null) {
+            response.put("error", "Markup type must not be empty");
+            return true;
+        }
+
+        if (dto.getValue() == null || dto.getValue().compareTo(BigDecimal.ZERO) < 0) {
+            response.put("error", "Value must be greater than or equal to zero");
+            return true;
+        }
+
+        if (iDeliveryCostConfigRepository.existsByMinimumSumAndIdNotIn(dto.getMinimumSum(), List.of(dto.getId()))) {
+            response.put("error", "Delivery cost rule already exists");
+            return true;
+        }
+
+        return false;
     }
 }
