@@ -9,7 +9,7 @@ import org.springframework.validation.beanvalidation.MethodValidationPostProcess
 public class ValidationConfig {
 
     @Bean
-    public MethodValidationPostProcessor methodValidationPostProcessor(Validator validator) {
+    public static MethodValidationPostProcessor methodValidationPostProcessor(Validator validator) {
         MethodValidationPostProcessor processor = new MethodValidationPostProcessor();
         processor.setValidator(validator);
         return processor;
