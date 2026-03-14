@@ -56,9 +56,25 @@ SELECT
     gen_random_uuid(),
     id,
     0,
-    'USD',
+    'RUB',
     NOW(),
     NOW()
 FROM public.users
 WHERE login = 'admin'
 ON CONFLICT (user_id) DO NOTHING;
+
+-- Insert cart for admin
+INSERT INTO public.cart (
+    id,
+    user_id,
+    created_ts,
+    updated_ts
+)
+SELECT
+    gen_random_uuid(),
+    id,
+    NOW(),
+    NOW()
+FROM public.users
+WHERE login = 'admin'
+    ON CONFLICT (user_id) DO NOTHING;
