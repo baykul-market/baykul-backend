@@ -1,11 +1,13 @@
 package by.baykulbackend.services.finance;
 
+import by.baykulbackend.database.dao.balance.Balance;
 import by.baykulbackend.database.dao.finance.*;
 import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.finance.DeliveryCostConfigDto;
 import by.baykulbackend.database.dto.finance.PriceConfigDto;
+import by.baykulbackend.database.repository.balance.IBalanceRepository;
 import by.baykulbackend.database.repository.finance.IDeliveryCostConfigRepository;
 import by.baykulbackend.database.repository.finance.IPriceConfigRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
@@ -35,6 +37,7 @@ public class PriceService {
 
     private static final BigDecimal DEFAULT_MARKUP_PERCENTAGE = new BigDecimal("0.10");
     private static final Currency DEFAULT_CURRENCY = Currency.RUB;
+    private final IBalanceRepository iBalanceRepository;
 
 
     /**
@@ -85,6 +88,10 @@ public class PriceService {
 
         if (configDto.getSystemCurrency() != null) {
             config.setCurrency(configDto.getSystemCurrency());
+
+            if (!config.getCurrency().equals(configDto.getSystemCurrency())) {
+                updateBalancesCurrency(configDto.getSystemCurrency());
+            }
         }
 
         iPriceConfigRepository.save(config);
@@ -340,5 +347,22 @@ public class PriceService {
         }
 
         return false;
+    }
+
+    private void updateBalancesCurrency(Currency newCurrency) {
+        Set<Balance> balances = iBalanceRepository.findAllByCurrencyNot(newCurrency);
+
+        for (Balance balance : balances) {
+            if (balance.getCurrency().equals(newCurrency)) {
+                continue;
+            }
+
+            balance.setAccount(currencyExchangeService.exchange(
+                    balance.getAccount(), balance.getCurrency(), newCurrency
+            ));
+            balance.setCurrency(newCurrency);
+        }
+
+        iBalanceRepository.saveAll(balances);
     }
 }
