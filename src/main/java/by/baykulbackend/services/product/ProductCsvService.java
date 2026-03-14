@@ -24,7 +24,6 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,7 +32,7 @@ import java.util.stream.Collectors;
 
 /**
  * Service responsible for parsing and processing bulk product imports via CSV.
- * It handles chunked reading, validation, and batch saving to optimise performance
+ * It handles chunked reading, validation, and batch saving to optimize performance
  * and memory usage for large datasets.
  */
 @Slf4j
@@ -121,20 +120,22 @@ public class ProductCsvService {
 
         // Phase 2: Fetch existing articles from DB
         long startDbFetch = System.currentTimeMillis();
-        Set<String> existingArticles = iPartRepository.findAllByArticleIn(articlesInChunk);
-        log.trace("Chunk #{} - Phase 2: Fetched {} existing articles from DB in {} ms", chunkNumber, existingArticles.size(), (System.currentTimeMillis() - startDbFetch));
+        Map<String, Part> existingParts = iPartRepository.findAllByArticleIn(articlesInChunk)
+                .stream()
+                .collect(Collectors.toMap(
+                        Part::getArticle,
+                        part -> part
+                ));
+        log.trace("Chunk #{} - Phase 2: Fetched {} existing articles from DB in {} ms", chunkNumber, existingParts.size(), (System.currentTimeMillis() - startDbFetch));
 
-        Set<String> uniqueArticlesInChunk = new HashSet<>();
         List<Part> partsToSave = new ArrayList<>();
 
-        // Phase 3: Validate and parse lines
         long startValidation = System.currentTimeMillis();
         int currentLineNumber = startLineNumber;
         for (String[] line : lines) {
-            if (!isInvalidLine(line, response, currentLineNumber, existingArticles, uniqueArticlesInChunk)) {
-                Part part = parsePartFromLine(line);
+            if (!isInvalidLine(line, response, currentLineNumber)) {
+                Part part = parsePartFromLine(line, existingParts);
                 partsToSave.add(part);
-                uniqueArticlesInChunk.add(part.getArticle());
             }
             currentLineNumber++;
         }
@@ -155,13 +156,14 @@ public class ProductCsvService {
 
     /**
      * Maps a valid array of CSV string values to a new {@link Part} entity.
-     * Handles type conversions, default values, and standardises decimal formatting.
+     * Handles type conversions, default values, and standardizes decimal formatting.
      *
      * @param line A single parsed row from the CSV representing a product part.
+     * @param existingParts Existing parts to update
      * @return A fully populated {@link Part} entity ready to be saved.
      */
-    private Part parsePartFromLine(String[] line) {
-        Part part = new Part();
+    private Part parsePartFromLine(String[] line, Map<String, Part> existingParts) {
+        Part part = existingParts.getOrDefault(line[0], new Part());
         part.setArticle(line[0]);
         part.setName(line[1]);
         if (StringUtils.isNotBlank(line[2])) {
@@ -185,14 +187,11 @@ public class ProductCsvService {
      * @param line                  The CSV line to validate.
      * @param response              The map-collecting validation errors.
      * @param lineNumber            The actual line number of the row in the CSV file.
-     * @param existingArticles      A pre-fetched set of articles that already exist in the database.
-     * @param uniqueArticlesInChunk A set tracking articles that have already been processed in the current chunk.
      * @return {@code true} if the line violates any validation rule; {@code false} if it is valid.
      */
-    private boolean isInvalidLine(String[] line, Map<String, String> response, int lineNumber, Set<String> existingArticles, Set<String> uniqueArticlesInChunk) {
+    private boolean isInvalidLine(String[] line, Map<String, String> response, int lineNumber) {
         Optional<String> error = validateStructure(line)
                 .or(() -> validateRequiredFields(line))
-                .or(() -> validateUniqueness(line[0], existingArticles, uniqueArticlesInChunk))
                 .or(() -> validateFieldLengths(line))
                 .or(() -> validateNumericValues(line))
                 .or(() -> validateDecimalValues(line));
@@ -225,22 +224,6 @@ public class ProductCsvService {
     private Optional<String> validateRequiredFields(String[] line) {
         if (StringUtils.isAnyEmpty(line[0], line[1], line[6], line[7])) {
             return Optional.of("Required fields are missing. Article, name, price, and brand must be provided.");
-        }
-        return Optional.empty();
-    }
-
-    /**
-     * Validates that the article number is entirely unique—both against the database
-     * and against previously processed lines in the current chunk.
-     *
-     * @param article               The article identifier to check.
-     * @param existingArticles      Articles pre-fetched from the database.
-     * @param uniqueArticlesInChunk Articles already processed in this chunk.
-     * @return An {@link Optional} containing an error message if a duplicate is found, or empty if unique.
-     */
-    private Optional<String> validateUniqueness(String article, Set<String> existingArticles, Set<String> uniqueArticlesInChunk) {
-        if (existingArticles.contains(article) || uniqueArticlesInChunk.contains(article)) {
-            return Optional.of("Duplicate article " + article);
         }
         return Optional.empty();
     }
