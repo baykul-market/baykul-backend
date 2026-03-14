@@ -24,24 +24,14 @@ spring:
   jpa:
     generate-ddl: false
     show-sql: false
-    open-in-view: false
     hibernate:
       ddl-auto: validate
-      dialect: org.hibernate.dialect.PostgreSQLDialect
     properties:
       hibernate:
         jdbc:
           batch_size: 5000
-          batch_versioned_data: true
         order_inserts: true
         order_updates: true
-        connection:
-          release_mode: after_transaction
-        cache:
-          use_second_level_cache: false
-          use_query_cache: false
-        format_sql: false
-        generate_statistics: false
 
   liquibase:
     enabled: true
