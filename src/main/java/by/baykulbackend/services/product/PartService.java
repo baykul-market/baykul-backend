@@ -4,7 +4,6 @@ import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.product.PartDto;
-import by.baykulbackend.database.model.Permission;
 import by.baykulbackend.database.repository.product.IPartRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
@@ -21,7 +20,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.*;
 
 @Slf4j
@@ -325,7 +323,7 @@ public class PartService {
     }
 
     /**
-     * Конвертирует Part в PartDto
+     * Converts Part into PartDto
      */
     private PartDto convertToDto(Part part) {
         BigDecimal price;
@@ -334,11 +332,15 @@ public class PartService {
         User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        if (user.getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
+        if (user.getCanSeeActualPrice()) {
             price = part.getPrice();
             currency = part.getCurrency();
         } else {
-            price = priceService.calculateProductPrice(part, part.getStorageCount() == null || part.getStorageCount() == 0);
+            price = priceService.calculateProductPrice(
+                    part,
+                    part.getStorageCount() == null || part.getStorageCount() == 0,
+                    user
+            );
             currency = priceService.getSystemCurrency();
         }
 

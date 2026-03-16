@@ -66,6 +66,14 @@ public class UserService {
             user.setCanPayLater(false);
         }
 
+        if (user.getMarkupPercentage() == null) {
+            user.setMarkupPercentage(priceService.getMarkupPercentage());
+        }
+
+        if (user.getCanSeeActualPrice() == null) {
+            user.setCanSeeActualPrice(false);
+        }
+
         Profile profile = user.getProfile();
 
         if (profile == null) {
@@ -85,8 +93,6 @@ public class UserService {
         cart.setUser(user);
         user.setCart(cart);
 
-        user.setMarkupPercentage(priceService.getMarkupPercentage());
-
         iUserRepository.save(user);
         response.put("create_user", "true");
         log.info("User {} has been created.", user.getLogin());
@@ -102,8 +108,10 @@ public class UserService {
      */
     public ResponseEntity<?> registerUser(User user) {
         user.setRole(Role.USER);
-        user.setBlocked(false);
-        user.setCanPayLater(false);
+        user.setBlocked(null);
+        user.setCanPayLater(null);
+        user.setMarkupPercentage(null);
+        user.setCanSeeActualPrice(null);
 
         return createUser(user);
     }
@@ -126,7 +134,6 @@ public class UserService {
         return ResponseEntity.ok(response);
     }
 
-    // TODO: separate from main update logic and add validation
     /**
      * Updates an existing user's information taking user to update from authentication principal.
      * Only updates non-null fields from the provided user object.
@@ -142,6 +149,7 @@ public class UserService {
         user.setBlocked(null);
         user.setCanPayLater(null);
         user.setMarkupPercentage(null);
+        user.setCanSeeActualPrice(null);
         user.setRole(null);
         user.setPhoneNumber(null);
         user.setEmail(null);
@@ -252,12 +260,14 @@ public class UserService {
         }
 
         if (user.getMarkupPercentage() != null && !user.getMarkupPercentage().equals(userFromDB.getMarkupPercentage())) {
-            if (user.getMarkupPercentage().compareTo(BigDecimal.ZERO) < 0) {
-                response.put("error_markup_percentage", "Markup percentage must not be negative");
-                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-            }
             userFromDB.setMarkupPercentage(user.getMarkupPercentage());
             log.info("User's markup percentage param with id {} has been updated -> {}",
+                    id, authService.getAuthInfo().getPrincipal());
+        }
+
+        if (user.getCanSeeActualPrice() != null && user.getCanSeeActualPrice() != userFromDB.getCanSeeActualPrice()) {
+            userFromDB.setCanSeeActualPrice(user.getCanSeeActualPrice());
+            log.info("User's canSeeActualPrice param with id {} has been updated -> {}",
                     id, authService.getAuthInfo().getPrincipal());
         }
 
@@ -449,10 +459,15 @@ public class UserService {
             }
         }
 
-
         if (StringUtils.isNotBlank(user.getPhoneNumber()) && !Validator.isValidPhoneNumber(user.getPhoneNumber())) {
             response.put("error_phone_number", "Invalid phone number");
             log.warn("Invalid phone number");
+            return true;
+        }
+
+        if (user.getMarkupPercentage().compareTo(BigDecimal.ZERO) < 0) {
+            response.put("error_markup_percentage", "Invalid markup percentage");
+            log.warn("Invalid markup percentage");
             return true;
         }
 
