@@ -18,13 +18,3 @@ databaseChangeLog:
             path: classpath:db/changelog/v1.0.0/sql/02-insert-default-admin.sql
             splitStatements: true
             stripComments: true
-
-  - changeSet:
-      id: 3
-      author: amir_home
-      comment: "Add can_see_actual_price column and make can_pay_later required"
-      changes:
-        - sqlFile:
-            path: classpath:db/changelog/v1.0.0/sql/03-alter-users-table.sql
-            splitStatements: true
-            stripComments: true
