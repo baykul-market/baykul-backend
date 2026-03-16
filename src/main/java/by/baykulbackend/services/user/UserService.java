@@ -143,6 +143,8 @@ public class UserService {
         user.setCanPayLater(null);
         user.setMarkupPercentage(null);
         user.setRole(null);
+        user.setPhoneNumber(null);
+        user.setEmail(null);
 
         return updateUser(userFromDB, user);
     }

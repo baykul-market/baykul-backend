@@ -44,7 +44,7 @@ jwt:
 
 logging:
   file:
-    name: log/application.log
+    name: logs/application.log
   logback:
     rollingpolicy:
       clean-history-on-start: true
