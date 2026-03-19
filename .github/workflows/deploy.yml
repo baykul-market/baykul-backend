@@ -59,50 +59,58 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
+    env:
+      TARGET_HOST: ${{ secrets.HOST_PROD }}
+      CONTAINER_NAME: baykul-backend-prod
+      BACKEND_PORT: ${{ vars.BACKEND_PORT || '8080' }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Get Short SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
-      - name: Create .env file
-        run: |
-          cat > .env << EOF
-          POSTGRES_DB=baykul
-          POSTGRES_USER=baykul_user
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
-          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
-          SECURITY_USER_PASSWORD=${{ secrets.SECURITY_USER_PASSWORD }}
-          EOF
-
-      - name: Copy compose and env files
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.HOST_PROD }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          source: "docker-compose.yml,.env"
-          target: "/opt/baykul-backend/"
-          strip_components: 0
-
-      - name: Deploy with Docker Compose
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.HOST_PROD }}
+          host: ${{ env.TARGET_HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          envs: GITHUB_TOKEN,SHORT_SHA
+          envs: REGISTRY,IMAGE_NAME,SHORT_SHA,CONTAINER_NAME,BACKEND_PORT,GITHUB_TOKEN
           script: |
-            cd /opt/baykul-backend
-            echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-            IMAGE="ghcr.io/${REPO_LOWER}:sha-${SHORT_SHA}"
-            echo "Pulling image: $IMAGE"
-            docker pull $IMAGE
-            sed -i "s|image: baykul-backend:.*|image: ${IMAGE}|g" docker-compose.yml
-            docker compose down || true
-            docker compose up -d
-            docker image prune -f
+            set -e
+            echo "$GITHUB_TOKEN" | docker login $REGISTRY -u ${{ github.actor }} --password-stdin
+            FULL_IMAGE_NAME=$(echo "$REGISTRY/$IMAGE_NAME:sha-$SHORT_SHA" | tr '[:upper:]' '[:lower:]')
+            echo "Pulling image: $FULL_IMAGE_NAME"
+            docker pull $FULL_IMAGE_NAME
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
+            mkdir -p /opt/$CONTAINER_NAME/logs
+            mkdir -p /opt/$CONTAINER_NAME/uploads
+            mkdir -p /opt/$CONTAINER_NAME/uploads/tmp
+            
+            docker run -d \
+              --name $CONTAINER_NAME \
+              --network baykul-network \
+              -p $BACKEND_PORT:8080 \
+              --restart always \
+              -e SPRING_PROFILES_ACTIVE=prod \
+              -e DATABASE_URL=jdbc:postgresql://baykul-postgres:5432/baykul \
+              -e DATABASE_USER=${{ secrets.POSTGRES_USER }} \
+              -e DATABASE_PASSWORD=${{ secrets.DB_PASSWORD }} \
+              -e JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} \
+              -e JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} \
+              -e SECURITY_USER_PASSWORD=${{ secrets.SECURITY_USER_PASSWORD }} \
+              -v /opt/$CONTAINER_NAME/logs:/app/logs \
+              -v /opt/$CONTAINER_NAME/uploads:/app/uploads \
+              $FULL_IMAGE_NAME
+
+            docker image prune -af --filter "until=24h" || true
+
+            sleep 5
+            if docker ps | grep -q $CONTAINER_NAME; then
+              echo "✅ Container $CONTAINER_NAME started successfully"
+              echo "📝 Logs: docker logs $CONTAINER_NAME"
+            else
+              echo "❌ Container failed to start"
+              docker logs $CONTAINER_NAME
+              exit 1
+            fi
