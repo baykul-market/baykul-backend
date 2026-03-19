@@ -15,6 +15,10 @@ LABEL maintainer="Baykul Team" \
       description="Baykul Backend Application"
 RUN groupadd --system --gid 1000 spring && \
     useradd --system --uid 1000 --gid spring spring
+RUN mkdir -p /app/logs && \
+    mkdir -p /app/uploads && \
+    mkdir -p /app/uploads/tmp && \
+    mkdir -p /app/config
 COPY --from=build --chown=spring:spring /app/build/libs/*.jar /app/application.jar
 RUN chown -R spring:spring /app
 USER spring:spring
