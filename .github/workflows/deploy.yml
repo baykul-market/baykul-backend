@@ -83,9 +83,6 @@ jobs:
             docker pull $FULL_IMAGE_NAME
             docker stop $CONTAINER_NAME || true
             docker rm $CONTAINER_NAME || true
-            mkdir -p /opt/$CONTAINER_NAME/logs
-            mkdir -p /opt/$CONTAINER_NAME/uploads
-            mkdir -p /opt/$CONTAINER_NAME/uploads/tmp
             
             docker run -d \
               --name $CONTAINER_NAME \
