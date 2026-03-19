@@ -10,7 +10,6 @@ INSERT INTO public.users (
     role,
     blocked,
     can_pay_later,
-    can_see_actual_price,
     markup_percentage
 ) VALUES (
     gen_random_uuid(),
@@ -22,7 +21,6 @@ INSERT INTO public.users (
     NULL,
     'ADMIN',
     false,
-    true,
     true,
     0
 ) ON CONFLICT (login) DO NOTHING;

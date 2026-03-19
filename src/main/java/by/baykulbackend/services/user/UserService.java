@@ -70,10 +70,6 @@ public class UserService {
             user.setMarkupPercentage(priceService.getMarkupPercentage());
         }
 
-        if (user.getCanSeeActualPrice() == null) {
-            user.setCanSeeActualPrice(false);
-        }
-
         Profile profile = user.getProfile();
 
         if (profile == null) {
@@ -111,7 +107,6 @@ public class UserService {
         user.setBlocked(null);
         user.setCanPayLater(null);
         user.setMarkupPercentage(null);
-        user.setCanSeeActualPrice(null);
 
         return createUser(user);
     }
@@ -149,7 +144,6 @@ public class UserService {
         user.setBlocked(null);
         user.setCanPayLater(null);
         user.setMarkupPercentage(null);
-        user.setCanSeeActualPrice(null);
         user.setRole(null);
         user.setPhoneNumber(null);
         user.setEmail(null);
@@ -262,12 +256,6 @@ public class UserService {
         if (user.getMarkupPercentage() != null && !user.getMarkupPercentage().equals(userFromDB.getMarkupPercentage())) {
             userFromDB.setMarkupPercentage(user.getMarkupPercentage());
             log.info("User's markup percentage param with id {} has been updated -> {}",
-                    id, authService.getAuthInfo().getPrincipal());
-        }
-
-        if (user.getCanSeeActualPrice() != null && user.getCanSeeActualPrice() != userFromDB.getCanSeeActualPrice()) {
-            userFromDB.setCanSeeActualPrice(user.getCanSeeActualPrice());
-            log.info("User's canSeeActualPrice param with id {} has been updated -> {}",
                     id, authService.getAuthInfo().getPrincipal());
         }
 

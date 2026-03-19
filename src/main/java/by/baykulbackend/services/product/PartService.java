@@ -4,6 +4,7 @@ import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.product.PartDto;
+import by.baykulbackend.database.model.Permission;
 import by.baykulbackend.database.repository.product.IPartRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
@@ -326,25 +327,17 @@ public class PartService {
      * Converts Part into PartDto
      */
     private PartDto convertToDto(Part part) {
-        BigDecimal price;
-        Currency currency;
-
         User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        if (user.getCanSeeActualPrice()) {
-            price = part.getPrice();
-            currency = part.getCurrency();
-        } else {
-            price = priceService.calculateProductPrice(
-                    part,
-                    part.getStorageCount() == null || part.getStorageCount() == 0,
-                    user
-            );
-            currency = priceService.getSystemCurrency();
-        }
+        BigDecimal price = priceService.calculateProductPrice(
+                part,
+                part.getStorageCount() == null || part.getStorageCount() == 0,
+                user
+        );
+        Currency currency = priceService.getSystemCurrency();
 
-        return PartDto.builder()
+        PartDto partDto = PartDto.builder()
                 .id(part.getId())
                 .createdTs(part.getCreatedTs())
                 .updatedTs(part.getUpdatedTs())
@@ -358,6 +351,13 @@ public class PartService {
                 .currency(currency)
                 .brand(part.getBrand())
                 .build();
+
+        if (user.getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
+            partDto.setRealPrice(part.getPrice());
+            partDto.setRealCurrency(part.getCurrency());
+        }
+
+        return partDto;
     }
 
     /**

@@ -144,15 +144,6 @@ public class User {
     private BigDecimal markupPercentage;
 
     @Schema(
-            description = "Indicates user's ability to see the actual price of products",
-            example = "true",
-            defaultValue = "false"
-    )
-    @Column(name = "can_see_actual_price", nullable = false)
-    @JsonView({Views.UserAdminView.class, Views.UserView.Post.class, Views.UserView.Patch.class})
-    private Boolean canSeeActualPrice;
-
-    @Schema(
             description = "List of refresh tokens associated with the user",
             accessMode = Schema.AccessMode.READ_ONLY
     )
