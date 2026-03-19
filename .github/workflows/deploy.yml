@@ -90,7 +90,7 @@ jobs:
               -p $BACKEND_PORT:8080 \
               --restart always \
               -e SPRING_PROFILES_ACTIVE=prod \
-              -e DATABASE_URL=jdbc:postgresql://baykul-postgres:5432/baykul \
+              -e DATABASE_URL=jdbc:postgresql://localhost:5432/baykul \
               -e DATABASE_USER=${{ secrets.POSTGRES_USER }} \
               -e DATABASE_PASSWORD=${{ secrets.DB_PASSWORD }} \
               -e JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} \
