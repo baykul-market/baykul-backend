@@ -21,7 +21,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.*;
 
 @Slf4j
@@ -325,24 +324,20 @@ public class PartService {
     }
 
     /**
-     * Конвертирует Part в PartDto
+     * Converts Part into PartDto
      */
     private PartDto convertToDto(Part part) {
-        BigDecimal price;
-        Currency currency;
-
         User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        if (user.getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
-            price = part.getPrice();
-            currency = part.getCurrency();
-        } else {
-            price = priceService.calculateProductPrice(part, part.getStorageCount() == null || part.getStorageCount() == 0);
-            currency = priceService.getSystemCurrency();
-        }
+        BigDecimal price = priceService.calculateProductPrice(
+                part,
+                part.getStorageCount() == null || part.getStorageCount() == 0,
+                user
+        );
+        Currency currency = priceService.getSystemCurrency();
 
-        return PartDto.builder()
+        PartDto partDto = PartDto.builder()
                 .id(part.getId())
                 .createdTs(part.getCreatedTs())
                 .updatedTs(part.getUpdatedTs())
@@ -356,6 +351,13 @@ public class PartService {
                 .currency(currency)
                 .brand(part.getBrand())
                 .build();
+
+        if (user.getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
+            partDto.setRealPrice(part.getPrice());
+            partDto.setRealCurrency(part.getCurrency());
+        }
+
+        return partDto;
     }
 
     /**

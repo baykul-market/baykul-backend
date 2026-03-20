@@ -4,7 +4,6 @@ import by.baykulbackend.database.dao.cart.Cart;
 import by.baykulbackend.database.dao.cart.CartProduct;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
-import by.baykulbackend.database.model.Permission;
 import by.baykulbackend.database.model.Role;
 import by.baykulbackend.database.repository.cart.ICartProductRepository;
 import by.baykulbackend.database.repository.cart.ICartRepository;
@@ -16,13 +15,11 @@ import by.baykulbackend.services.user.AuthService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -44,16 +41,14 @@ public class CartService {
         Cart cart = iCartRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new NotFoundException("Cart not found"));
 
-        if (!user.getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
-            for (CartProduct cartProduct : cart.getCartProducts()) {
-                Part part = cartProduct.getPart();
+        for (CartProduct cartProduct : cart.getCartProducts()) {
+            Part part = cartProduct.getPart();
 
-                boolean needsDelivery = part.getStorageCount() == null
-                        || cartProduct.getPartsCount() > part.getStorageCount();
+            boolean needsDelivery = part.getStorageCount() == null
+                    || cartProduct.getPartsCount() > part.getStorageCount();
 
-                part.setPrice(priceService.calculateProductPrice(part, needsDelivery));
-                part.setCurrency(priceService.getSystemCurrency());
-            }
+            part.setPrice(priceService.calculateProductPrice(part, needsDelivery));
+            part.setCurrency(priceService.getSystemCurrency());
         }
 
         return cart;

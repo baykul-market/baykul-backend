@@ -1,11 +1,13 @@
 package by.baykulbackend.services.finance;
 
+import by.baykulbackend.database.dao.balance.Balance;
 import by.baykulbackend.database.dao.finance.*;
 import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.finance.DeliveryCostConfigDto;
 import by.baykulbackend.database.dto.finance.PriceConfigDto;
+import by.baykulbackend.database.repository.balance.IBalanceRepository;
 import by.baykulbackend.database.repository.finance.IDeliveryCostConfigRepository;
 import by.baykulbackend.database.repository.finance.IPriceConfigRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
@@ -35,6 +37,7 @@ public class PriceService {
 
     private static final BigDecimal DEFAULT_MARKUP_PERCENTAGE = new BigDecimal("0.10");
     private static final Currency DEFAULT_CURRENCY = Currency.RUB;
+    private final IBalanceRepository iBalanceRepository;
 
 
     /**
@@ -84,6 +87,10 @@ public class PriceService {
         }
 
         if (configDto.getSystemCurrency() != null) {
+            if (!config.getCurrency().equals(configDto.getSystemCurrency())) {
+                updateBalancesCurrency(configDto.getSystemCurrency());
+            }
+
             config.setCurrency(configDto.getSystemCurrency());
         }
 
@@ -192,6 +199,10 @@ public class PriceService {
      */
     @Transactional
     public ResponseEntity<?> resetAllToDefault() {
+        if (!getSystemCurrency().equals(DEFAULT_CURRENCY)) {
+            updateBalancesCurrency(DEFAULT_CURRENCY);
+        }
+
         iPriceConfigRepository.deleteAll();
         iDeliveryCostConfigRepository.deleteAll();
 
@@ -261,17 +272,17 @@ public class PriceService {
      *
      * @param part the part with price and currency
      * @param withDelivery true to include delivery cost
+     * @param user user entity to count price for
      * @return final price in system currency
      */
     @Transactional(readOnly = true)
-    public BigDecimal calculateProductPrice(Part part, boolean withDelivery) {
+    public BigDecimal calculateProductPrice(Part part, boolean withDelivery, User user) {
         BigDecimal basePrice = currencyExchangeService.exchange(
                 part.getPrice(),
                 part.getCurrency(),
                 getSystemCurrency()
         );
 
-        User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString()).orElse(null);
         BigDecimal userMarkupPercentage = user != null ? user.getMarkupPercentage() : getMarkupPercentage();
 
         BigDecimal finalPrice = basePrice;
@@ -286,6 +297,23 @@ public class PriceService {
         finalPrice = finalPrice.add(markupAmount).setScale(2, RoundingMode.HALF_UP);
 
         return finalPrice;
+    }
+
+    /**
+     * Calculates final price for a part.
+     * Takes currently authenticated user's params.
+     *
+     * @param part the part with price and currency
+     * @param withDelivery true to include delivery cost
+     * @return final price in system currency
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal calculateProductPrice(Part part, boolean withDelivery) {
+        return calculateProductPrice(
+                part,
+                withDelivery,
+                iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString()).orElse(null)
+        );
     }
 
 
@@ -334,11 +362,30 @@ public class PriceService {
             return true;
         }
 
-        if (iDeliveryCostConfigRepository.existsByMinimumSumAndIdNotIn(dto.getMinimumSum(), List.of(dto.getId()))) {
+        if (iDeliveryCostConfigRepository.existsByMinimumSumAndIdNotIn(
+                dto.getMinimumSum(), Collections.singletonList(dto.getId())
+        )) {
             response.put("error", "Delivery cost rule already exists");
             return true;
         }
 
         return false;
+    }
+
+    private void updateBalancesCurrency(Currency newCurrency) {
+        Set<Balance> balances = iBalanceRepository.findAllByCurrencyNot(newCurrency);
+
+        for (Balance balance : balances) {
+            if (balance.getCurrency().equals(newCurrency)) {
+                continue;
+            }
+
+            balance.setAccount(currencyExchangeService.exchange(
+                    balance.getAccount(), balance.getCurrency(), newCurrency
+            ));
+            balance.setCurrency(newCurrency);
+        }
+
+        iBalanceRepository.saveAll(balances);
     }
 }
