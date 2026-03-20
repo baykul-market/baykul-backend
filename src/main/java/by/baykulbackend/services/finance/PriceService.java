@@ -334,7 +334,9 @@ public class PriceService {
             return true;
         }
 
-        if (iDeliveryCostConfigRepository.existsByMinimumSumAndIdNotIn(dto.getMinimumSum(), List.of(dto.getId()))) {
+        if (iDeliveryCostConfigRepository.existsByMinimumSumAndIdNotIn(
+                dto.getMinimumSum(), Collections.singletonList(dto.getId())
+        )) {
             response.put("error", "Delivery cost rule already exists");
             return true;
         }
