@@ -225,6 +225,6 @@ public class CurrencyExchangeService {
      * @return true if request is valid, false otherwise
      */
     private boolean isValidExchangeRequest(BigDecimal valueToExchange) {
-        return valueToExchange != null && valueToExchange.compareTo(BigDecimal.ZERO) > 0;
+        return valueToExchange != null && valueToExchange.compareTo(BigDecimal.ZERO) >= 0;
     }
 }

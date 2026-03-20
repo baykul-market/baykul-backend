@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -72,7 +71,7 @@ public class PriceConfigController {
             description = "Updates markup percentage and/or system currency. All fields are optional. " +
                     "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
-            requestBody = @RequestBody(
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Base configuration data to update",
                     required = true,
                     content = @Content(
@@ -136,7 +135,7 @@ public class PriceConfigController {
             description = "Creates a new delivery cost rule. " +
                     "For SUM type, currency is required. Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
-            requestBody = @RequestBody(
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Delivery cost rule data",
                     required = true,
                     content = @Content(
@@ -213,7 +212,7 @@ public class PriceConfigController {
             description = "Updates an existing delivery cost rule by ID. " +
                     "For SUM type, currency is required. Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
-            requestBody = @RequestBody(
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Delivery cost rule data to update",
                     required = true,
                     content = @Content(
