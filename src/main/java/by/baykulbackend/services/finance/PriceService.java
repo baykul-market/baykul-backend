@@ -87,11 +87,11 @@ public class PriceService {
         }
 
         if (configDto.getSystemCurrency() != null) {
-            config.setCurrency(configDto.getSystemCurrency());
-
             if (!config.getCurrency().equals(configDto.getSystemCurrency())) {
                 updateBalancesCurrency(configDto.getSystemCurrency());
             }
+
+            config.setCurrency(configDto.getSystemCurrency());
         }
 
         iPriceConfigRepository.save(config);
@@ -199,6 +199,10 @@ public class PriceService {
      */
     @Transactional
     public ResponseEntity<?> resetAllToDefault() {
+        if (!getSystemCurrency().equals(DEFAULT_CURRENCY)) {
+            updateBalancesCurrency(DEFAULT_CURRENCY);
+        }
+
         iPriceConfigRepository.deleteAll();
         iDeliveryCostConfigRepository.deleteAll();
 
