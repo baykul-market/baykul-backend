@@ -1,44 +1,48 @@
 -- Insert default admin user
 INSERT INTO public.users (
     id,
+    created_ts,
+    updated_ts,
     login,
     password,
+    email,
+    phone_number,
     role,
     blocked,
     can_pay_later,
-    markup_percentage,
-    created_ts,
-    updated_ts,
-    email
+    markup_percentage
 ) VALUES (
     gen_random_uuid(),
+    NOW(),
+    NOW(),
     'admin',
     '$2a$12$/ahjlHcxWm14jmDd/Dv/V.EcNrLlx7.LezMWv7a3v46FoymVsdZ9G',
+    'admin@example.com',
+    NULL,
     'ADMIN',
     false,
     true,
-    0,
-    NOW(),
-    NOW(),
-    'admin@example.com'
+    0
 ) ON CONFLICT (login) DO NOTHING;
 
 -- Insert corresponding profile
 INSERT INTO public.profile (
     id,
+    created_ts,
+    updated_ts,
     user_id,
     name,
     surname,
-    created_ts,
-    updated_ts
+    patronymic
 )
 SELECT
     gen_random_uuid(),
+    NOW(),
+    NOW(),
     id,
     'Admin',
     'Admin',
-    NOW(),
-    NOW()
+    NULL
 FROM public.users
 WHERE login = 'admin'
 ON CONFLICT DO NOTHING;
@@ -46,19 +50,19 @@ ON CONFLICT DO NOTHING;
 -- Insert balance for admin
 INSERT INTO public.balance (
     id,
+    created_ts,
+    updated_ts,
     user_id,
     account,
-    currency,
-    created_ts,
-    updated_ts
+    currency
 )
 SELECT
     gen_random_uuid(),
+    NOW(),
+    NOW(),
     id,
     0,
-    'RUB',
-    NOW(),
-    NOW()
+    'RUB'
 FROM public.users
 WHERE login = 'admin'
 ON CONFLICT (user_id) DO NOTHING;
@@ -66,15 +70,15 @@ ON CONFLICT (user_id) DO NOTHING;
 -- Insert cart for admin
 INSERT INTO public.carts (
     id,
-    user_id,
     created_ts,
-    updated_ts
+    updated_ts,
+    user_id
 )
 SELECT
     gen_random_uuid(),
-    id,
     NOW(),
-    NOW()
+    NOW(),
+    id
 FROM public.users
 WHERE login = 'admin'
-    ON CONFLICT (user_id) DO NOTHING;
+ON CONFLICT (user_id) DO NOTHING;

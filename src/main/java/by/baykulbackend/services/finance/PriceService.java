@@ -272,17 +272,17 @@ public class PriceService {
      *
      * @param part the part with price and currency
      * @param withDelivery true to include delivery cost
+     * @param user user entity to count price for
      * @return final price in system currency
      */
     @Transactional(readOnly = true)
-    public BigDecimal calculateProductPrice(Part part, boolean withDelivery) {
+    public BigDecimal calculateProductPrice(Part part, boolean withDelivery, User user) {
         BigDecimal basePrice = currencyExchangeService.exchange(
                 part.getPrice(),
                 part.getCurrency(),
                 getSystemCurrency()
         );
 
-        User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString()).orElse(null);
         BigDecimal userMarkupPercentage = user != null ? user.getMarkupPercentage() : getMarkupPercentage();
 
         BigDecimal finalPrice = basePrice;
@@ -297,6 +297,23 @@ public class PriceService {
         finalPrice = finalPrice.add(markupAmount).setScale(2, RoundingMode.HALF_UP);
 
         return finalPrice;
+    }
+
+    /**
+     * Calculates final price for a part.
+     * Takes currently authenticated user's params.
+     *
+     * @param part the part with price and currency
+     * @param withDelivery true to include delivery cost
+     * @return final price in system currency
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal calculateProductPrice(Part part, boolean withDelivery) {
+        return calculateProductPrice(
+                part,
+                withDelivery,
+                iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString()).orElse(null)
+        );
     }
 
 

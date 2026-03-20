@@ -54,13 +54,21 @@ public class PartDto {
     @JsonView(Views.PartView.Get.class)
     private BigDecimal returnPart;
 
-    @Schema(description = "Part's price", example = "3.00")
+    @Schema(description = "Part's calculated price", example = "3.00")
     @JsonView(Views.PartView.Get.class)
     private BigDecimal price;
 
-    @Schema(description = "Part's price currency", example = "EUR")
+    @Schema(description = "Part's calculated price currency", example = "EUR")
     @JsonView(Views.PartView.Get.class)
     private Currency currency;
+
+    @Schema(description = "Part's real price", example = "2.01")
+    @JsonView(Views.PartView.Get.class)
+    private BigDecimal realPrice;
+
+    @Schema(description = "Part's real price currency", example = "EUR")
+    @JsonView(Views.PartView.Get.class)
+    private Currency realCurrency;
 
     @Schema(description = "Part's brand name", example = "rolls royce")
     @JsonView(Views.PartView.Get.class)

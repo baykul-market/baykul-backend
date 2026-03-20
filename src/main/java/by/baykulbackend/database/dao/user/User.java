@@ -129,7 +129,7 @@ public class User {
             defaultValue = "false",
             example = "true"
     )
-    @Column(name = "can_pay_later")
+    @Column(name = "can_pay_later", nullable = false)
     @JsonView({Views.UserAdminView.class, Views.UserView.Post.class, Views.UserView.Patch.class})
     private Boolean canPayLater;
 
