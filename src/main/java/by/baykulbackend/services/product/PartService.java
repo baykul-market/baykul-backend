@@ -252,18 +252,20 @@ public class PartService {
      * @return Page of matching PartDto objects
      */
     public Page<PartDto> searchPart(String text, Pageable pageable) {
+        List<Part> content;
+
         if (text == null || text.isEmpty()) {
-            return Page.empty(pageable);
+            content = iPartRepository.findAll(pageable).getContent();
+        } else {
+            Page<Part> articleResults = iPartRepository.findByArticleContainingIgnoreCase(text, Pageable.unpaged());
+            Page<Part> nameResults = iPartRepository.findByNameContainingIgnoreCase(text, Pageable.unpaged());
+
+            Set<Part> combined = new LinkedHashSet<>();
+            combined.addAll(articleResults.getContent());
+            combined.addAll(nameResults.getContent());
+
+            content = new ArrayList<>(combined);
         }
-
-        Page<Part> articleResults = iPartRepository.findByArticleContainingIgnoreCase(text, Pageable.unpaged());
-        Page<Part> nameResults = iPartRepository.findByNameContainingIgnoreCase(text, Pageable.unpaged());
-
-        Set<Part> combined = new LinkedHashSet<>();
-        combined.addAll(articleResults.getContent());
-        combined.addAll(nameResults.getContent());
-
-        List<Part> content = new ArrayList<>(combined);
 
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), content.size());
