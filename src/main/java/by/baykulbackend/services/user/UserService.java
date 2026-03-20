@@ -117,7 +117,7 @@ public class UserService {
      */
     public ResponseEntity<?> deleteUserById(UUID id) {
         Map<String, String> response = new HashMap<>();
-        User userFromDB = iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
+        iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
 
         iUserRepository.deleteById(id);
         response.put("delete_user", "true");
@@ -138,6 +138,13 @@ public class UserService {
     public ResponseEntity<?> updateProfile(User user) {
         User userFromDB = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User not found"));
+
+        user.setBlocked(null);
+        user.setCanPayLater(null);
+        user.setMarkupPercentage(null);
+        user.setRole(null);
+        user.setPhoneNumber(null);
+        user.setEmail(null);
 
         return updateUser(userFromDB, user);
     }

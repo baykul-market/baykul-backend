@@ -15,8 +15,7 @@ public interface IPartRepository extends JpaRepository<Part, UUID> {
     Optional<Part> findByArticle(String article);
     boolean existsByArticle(String article);
 
-    @Query("SELECT p.article FROM Part p WHERE p.article IN :articles")
-    Set<String> findAllByArticleIn(@Param("articles") Set<String> articles);
+    Set<Part> findAllByArticleIn(Set<String> articles);
 
     Page<Part> findByName(String name, Pageable pageable);
     Page<Part> findByBrand(String brand, Pageable pageable);

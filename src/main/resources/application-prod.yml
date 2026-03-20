@@ -1,0 +1,123 @@
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-stacktrace: never
+    include-message: never
+
+spring:
+  application:
+    name: Baykul Web Application
+
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      validation-timeout: 5000
+      leak-detection-threshold: 60000
+
+  jpa:
+    generate-ddl: false
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 5000
+        order_inserts: true
+        order_updates: true
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    contexts: prod
+    drop-first: false
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 200MB
+      max-request-size: 200MB
+      file-size-threshold: 2KB
+      location: /app/uploads/tmp
+
+  main:
+    banner-mode: off
+  security:
+    user:
+      name: admin
+      password: ${SECURITY_USER_PASSWORD}
+      roles: ADMIN
+
+jwt:
+  secret:
+    access: ${JWT_ACCESS_SECRET}
+    refresh: ${JWT_REFRESH_SECRET}
+
+logging:
+  level:
+    root: WARN
+    by.baykulbackend: INFO
+    org.springframework: WARN
+    org.springframework.web: WARN
+    org.hibernate: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql: WARN
+    org.springframework.security: WARN
+    liquibase: INFO
+    com.zaxxer.hikari: WARN
+  file:
+    name: /app/logs/application.log
+    max-size: 200MB
+    max-history: 30
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /manage
+    enabled-by-default: false
+  endpoint:
+    health:
+      enabled: true
+      show-details: when-authorized
+      roles: ADMIN
+    info:
+      enabled: true
+    metrics:
+      enabled: true
+  health:
+    db:
+      enabled: true
+    defaults:
+      enabled: true
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+  show-actuator: false
+
+openapi:
+  title: Baykul Marketplace API
+  description: REST API documentation for Baykul Marketplace Platform
+  version: 1.0.0
+  contact:
+    name: ${OPENAPI_CONTACT_NAME:Baykul Support Team}
+    email: ${OPENAPI_CONTACT_EMAIL:support@baykul.com}
+    url: ${OPENAPI_CONTACT_URL:https://support.baykul.com}
+  servers:
+    production:
+      url: ${OPENAPI_PROD_URL:https://baykul.ru}
+      description: Production Server

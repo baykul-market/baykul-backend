@@ -453,7 +453,7 @@ public class UserRestController {
                     )
             )
     })
-    @PostMapping("/registration")
+//    @PostMapping("/registration")
     public ResponseEntity<?> registration(@RequestBody @JsonView(Views.UserView.Post.class) User user) {
         return userService.registerUser(user);
     }

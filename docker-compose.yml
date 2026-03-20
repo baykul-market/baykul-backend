@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:17
+    container_name: baykul_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:54321:5432"
+    networks:
+      - baykul_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: ghcr.io/baykul-market/baykul-backend:latest
+    container_name: baykul_app
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      DATABASE_USER: ${POSTGRES_USER}
+      DATABASE_PASSWORD: ${DB_PASSWORD}
+
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+
+      SERVER_PORT: 8080
+
+      SECURITY_USER_PASSWORD: ${SECURITY_USER_PASSWORD}
+    ports:
+      - "80:8080"
+    networks:
+      - baykul_network
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+
+volumes:
+  postgres_data:
+    name: baykul_postgres_data
+
+networks:
+  baykul_network:
+    name: baykul_network
