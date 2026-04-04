@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Заказ готов к выдаче</title>
+</head>
+<body>
+<h2>Здравствуйте, <span th:text="${userName}">Пользователь</span>!</h2>
+<p>Заказ №<span th:text="${orderNumber}">123456</span> готов к выдаче!</p>
+
+<p><strong>Статус:</strong> Готов к выдаче</p>
+<p th:text="${pickupMessage}">Ваш заказ можно забрать по адресу: г. Москва, ул. Тверская, д. 1</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">
+    Забрать заказ
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>

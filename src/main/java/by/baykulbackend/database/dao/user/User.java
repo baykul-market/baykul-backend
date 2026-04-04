@@ -144,6 +144,17 @@ public class User {
     private BigDecimal markupPercentage;
 
     @Schema(
+            description = "User's localization preference",
+            example = "RUS",
+            defaultValue = "RUS",
+            allowableValues = {"RUS", "ENG"}
+    )
+    @Column(name = "localization", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @JsonView({Views.UserView.Get.class, Views.UserView.Post.class, Views.UserView.Patch.class})
+    private Localization localization;
+
+    @Schema(
             description = "List of refresh tokens associated with the user",
             accessMode = Schema.AccessMode.READ_ONLY
     )

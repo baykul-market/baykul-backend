@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Заказ оформлен</title>
+</head>
+<body>
+<h2>Здравствуйте, <span th:text="${userName}">Пользователь</span>!</h2>
+<p>Заказ №<span th:text="${orderNumber}">123456</span> успешно оформлен!</p>
+
+<h3>Детали заказа:</h3>
+<p><strong>Статус:</strong> Оформлен</p>
+<p><strong>Сумма заказа:</strong> <span th:text="${totalAmount}">0.00 ₽</span></p>
+<p><strong>Дата оформления:</strong> <span th:text="${orderDate}">01.01.2024</span></p>
+
+<p>Спасибо за покупку! Мы приступили к обработке вашего заказа.</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+    Отследить заказ
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>

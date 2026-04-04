@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Order Ready for Pickup</title>
+</head>
+<body>
+<h2>Hello, <span th:text="${userName}">User</span>!</h2>
+<p>Order #<span th:text="${orderNumber}">123456</span> is ready for pickup!</p>
+
+<p><strong>Status:</strong> Ready for pickup</p>
+<p th:text="${pickupMessage}">Your order is ready for pickup at: Moscow, Tverskaya St., 1</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">
+    Pick Up Order
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>

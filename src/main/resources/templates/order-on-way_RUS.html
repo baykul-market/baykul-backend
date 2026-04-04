@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Заказ в пути</title>
+</head>
+<body>
+<h2>Здравствуйте, <span th:text="${userName}">Пользователь</span>!</h2>
+<p>Ваш заказ №<span th:text="${orderNumber}">123456</span> отправлен и находится в пути!</p>
+
+<h3>Информация о доставке:</h3>
+<p><strong>Статус:</strong> В пути</p>
+<p th:text="${trackingInfo}">Отследить заказ можно в личном кабинете</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+    Отследить заказ
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>

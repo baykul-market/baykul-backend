@@ -1,3 +1,12 @@
+app:
+  url:
+    base-url: https://market.baykul.ru
+    orders-path: /orders
+  office:
+    address:
+      rus: "г. Москва, ул. Тверская, д. 1"
+      eng: "Moscow, Tverskaya St., 1"
+
 server:
   port: ${SERVER_PORT:8080}
 
@@ -6,15 +15,14 @@ spring:
     name: Baykul Web Application
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/baykul}
-    username: ${DATABASE_USER:baykul_user}
-    password: ${DATABASE_PASSWORD:baykul_pass}
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
 
   jpa:
     generate-ddl: false
     show-sql: false
     hibernate:
-      # NOTE: Be sure to replace with 'validate' in production
       ddl-auto: validate
     properties:
       hibernate:
@@ -37,10 +45,29 @@ spring:
   main:
     banner-mode: off
 
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${EMAIL}
+    password: ${EMAIL_PASSWORD}
+    protocol: smtps
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          from: no-reply@baykul.ru
+          starttls:
+            enable: false
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 jwt:
   secret:
-    access: ${JWT_ACCESS_SECRET:FyGgATxvUgvZNgVvpIqsDvDxuhyHQTxVkBMoP1kXnCke1HJzz2Q70Uavl4tsejgBBzWsuIrIzXVpiWFKNQY+Ng==}
-    refresh: ${JWT_REFRESH_SECRET:vhvyF6Xx10wco5htwza5AU8NjH4lpTG5Q6zdLz4tpCUSJtHKnFvmoroCct3SxmQ5BtIlf7HDYDfuW6wB3bSecw==}
+    access: ${JWT_ACCESS_SECRET}
+    refresh: ${JWT_REFRESH_SECRET}
 
 logging:
   file:
@@ -92,5 +119,5 @@ openapi:
       url: ${OPENAPI_DEV_URL:http://localhost:8080}
       description: ${OPENAPI_DEV_DESC:Development Server}
     production:
-      url: ${OPENAPI_PROD_URL:https://api.baykul.com}
+      url: ${OPENAPI_PROD_URL:https://market.baykul.com}
       description: ${OPENAPI_PROD_DESC:Production Server}

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Ожидание оплаты</title>
+</head>
+<body>
+<h2>Здравствуйте, <span th:text="${userName}">Пользователь</span>!</h2>
+<p>Заказ №<span th:text="${orderNumber}">123456</span> ожидает оплаты.</p>
+
+<h3>Детали заказа:</h3>
+<p><strong>Статус:</strong> Ожидает оплаты</p>
+<p><strong>Сумма к оплате:</strong> <span th:text="${totalAmount}">0.00 ₽</span></p>
+
+<p>Пожалуйста, оплатите заказ в ближайшее время, чтобы мы могли начать его обработку.</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px;">
+    Перейти к оплате
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>

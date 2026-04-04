@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Заказ выполнен</title>
+</head>
+<body>
+<h2>Здравствуйте, <span th:text="${userName}">Пользователь</span>!</h2>
+<p>Заказ №<span th:text="${orderNumber}">123456</span> успешно выполнен!</p>
+
+<p><strong>Статус:</strong> Выполнен</p>
+<p>Благодарим вас за покупку! Будем рады видеть вас снова.</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 5px;">
+    Оставить отзыв
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>
