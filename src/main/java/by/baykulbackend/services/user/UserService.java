@@ -3,6 +3,7 @@ package by.baykulbackend.services.user;
 import by.baykulbackend.config.PasswordEncoderConfig;
 import by.baykulbackend.database.dao.balance.Balance;
 import by.baykulbackend.database.dao.cart.Cart;
+import by.baykulbackend.database.dao.user.Localization;
 import by.baykulbackend.database.dao.user.Profile;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.model.Role;
@@ -68,6 +69,10 @@ public class UserService {
 
         if (user.getMarkupPercentage() == null) {
             user.setMarkupPercentage(priceService.getMarkupPercentage());
+        }
+
+        if (user.getLocalization() == null) {
+            user.setLocalization(Localization.RUS);
         }
 
         Profile profile = user.getProfile();
@@ -257,6 +262,10 @@ public class UserService {
             userFromDB.setMarkupPercentage(user.getMarkupPercentage());
             log.info("User's markup percentage param with id {} has been updated -> {}",
                     id, authService.getAuthInfo().getPrincipal());
+        }
+
+        if (user.getLocalization() != null) {
+            userFromDB.setLocalization(user.getLocalization());
         }
 
         Profile profile = user.getProfile();

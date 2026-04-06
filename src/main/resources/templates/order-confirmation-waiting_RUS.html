@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Подтверждение заказа</title>
+</head>
+<body>
+<h2>Здравствуйте, <span th:text="${userName}">Пользователь</span>!</h2>
+<p>Ваш заказ №<span th:text="${orderNumber}">123456</span> от <span th:text="${orderDate}">01.01.2024</span> ожидает подтверждения.</p>
+
+<h3>Детали заказа:</h3>
+<p><strong>Статус:</strong> Ожидает подтверждения</p>
+<p><strong>Сумма заказа:</strong> <span th:text="${totalAmount}">0.00 ₽</span></p>
+
+<p>Мы свяжемся с вами в ближайшее время для подтверждения заказа.</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+    Перейти к заказу
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">
+    Это автоматическое сообщение, пожалуйста, не отвечайте на него.<br>
+    © Baykul Marketplace
+</p>
+</body>
+</html>

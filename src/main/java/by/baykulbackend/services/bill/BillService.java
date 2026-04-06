@@ -5,16 +5,19 @@ import by.baykulbackend.database.dao.bill.BillStatus;
 import by.baykulbackend.database.dao.order.BoxStatus;
 import by.baykulbackend.database.dao.order.Order;
 import by.baykulbackend.database.dao.order.OrderProduct;
+import by.baykulbackend.database.dao.order.OrderStatus;
 import by.baykulbackend.database.repository.bill.IBillRepository;
 import by.baykulbackend.database.repository.order.IOrderProductRepository;
 import by.baykulbackend.database.repository.order.IOrderRepository;
 import by.baykulbackend.exceptions.BadRequestException;
 import by.baykulbackend.exceptions.NotFoundException;
 import by.baykulbackend.services.order.OrderService;
+import by.baykulbackend.services.order.OrderStatusChangeEvent;
 import by.baykulbackend.services.user.AuthService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -37,6 +40,7 @@ public class BillService {
     private final OrderService orderService;
 
     private static final Long START_BILL_NUMBER = 10000L;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Creates a new bill with DRAFT status.
@@ -124,8 +128,16 @@ public class BillService {
         iBillRepository.save(billFromDb);
 
         List<Order> ordersToUpdate = billFromDb.getOrderProducts().stream().map(OrderProduct::getOrder).toList();
+        Map<Order, OrderStatus> ordersToUpdateOldStatuses = ordersToUpdate.stream()
+                .collect(Collectors.toMap(
+                        order -> order,
+                        Order::getStatus
+                ));
         ordersToUpdate.forEach(orderService::updateOrderStatus);
         iOrderRepository.saveAll(ordersToUpdate);
+
+        ordersToUpdateOldStatuses.forEach((order, oldStatus) ->
+                eventPublisher.publishEvent(new OrderStatusChangeEvent(order, oldStatus, order.getStatus())));
 
         response.put("update_bill", "true");
         log.info("Bill {} applied -> {}", billId, authService.getAuthInfo().getPrincipal());

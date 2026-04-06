@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Заказ отменён</title>
+</head>
+<body>
+<h2>Здравствуйте, <span th:text="${userName}">Пользователь</span>!</h2>
+<p>Заказ №<span th:text="${orderNumber}">123456</span> был отменён.</p>
+
+<p><strong>Статус:</strong> Отменён</p>
+<p th:text="${cancellationMessage}">Если вы не отменяли заказ, свяжитесь с поддержкой</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 5px;">
+    Оформить новый заказ
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>

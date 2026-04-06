@@ -18,6 +18,7 @@ import by.baykulbackend.database.repository.product.IPartRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.BadRequestException;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.email.OrderEmailService;
 import by.baykulbackend.services.finance.CurrencyExchangeService;
 import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.services.user.AuthService;
@@ -26,6 +27,7 @@ import by.baykulbackend.services.balance.BalanceService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -52,6 +54,8 @@ public class OrderService {
     private static final Long START_ORDER_NUMBER = 100000L;
     private final PriceService priceService;
     private final CurrencyExchangeService currencyExchangeService;
+    private final OrderEmailService orderEmailService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public Order getMyById(UUID id) {
         Order order = iOrderRepository.findByUserLoginAndId(authService.getAuthInfo().getPrincipal().toString(), id)
@@ -121,6 +125,8 @@ public class OrderService {
 
         log.info("Order {} created for user {} -> {}", order.getNumber(), user.getLogin(),
                 authService.getAuthInfo().getPrincipal());
+
+        orderEmailService.sendOrderCreatedEmail(order);
 
         return ResponseEntity.ok(response);
     }
@@ -266,8 +272,12 @@ public class OrderService {
         response.put("update_order_product", "true");
 
         if (orderProduct.getStatus() != null) {
+            OrderStatus oldStatus = orderProductFromDb.getOrder().getStatus();
             updateOrderStatus(orderProductFromDb.getOrder());
             iOrderRepository.save(orderProductFromDb.getOrder());
+            eventPublisher.publishEvent(new OrderStatusChangeEvent(
+                    orderProductFromDb.getOrder(), oldStatus, orderProductFromDb.getOrder().getStatus()
+            ));
         }
 
         return ResponseEntity.ok(response);
@@ -311,6 +321,8 @@ public class OrderService {
         iOrderProductRepository.saveAll(order.getOrderProducts());
         response.put("complete_order", "true");
         log.info("Order {} was completed", order.getNumber());
+
+        eventPublisher.publishEvent(new OrderStatusChangeEvent(order, OrderStatus.READY_FOR_PICKUP, OrderStatus.COMPLETED));
 
         return ResponseEntity.ok(response);
     }
@@ -614,12 +626,16 @@ public class OrderService {
      */
     private void updateOrderStatusAfterConfirmation(Order order) {
         if (Set.of(OrderStatus.CONFIRMATION_WAITING, OrderStatus.PAYMENT_WAITING).contains(order.getStatus())) {
+            OrderStatus oldStatus = order.getStatus();
+
             order.setStatus(OrderStatus.ORDERED);
             updateOrderProductsStatus(order);
             updateOrderStatus(order);
 
             iOrderProductRepository.saveAll(order.getOrderProducts());
             iOrderRepository.save(order);
+
+            eventPublisher.publishEvent(new OrderStatusChangeEvent(order, oldStatus, OrderStatus.ORDERED));
         }
     }
 
@@ -663,6 +679,7 @@ public class OrderService {
      * @return ResponseEntity with cancellation status
      */
     private ResponseEntity<?> cancelOrder(Order order, Map<String, Object> response) {
+        OrderStatus oldStatus = order.getStatus();
         order.setStatus(OrderStatus.CANCELLED);
         updateOrderProductsStatus(order);
 
@@ -670,6 +687,8 @@ public class OrderService {
         iOrderProductRepository.saveAll(order.getOrderProducts());
         response.put("cancel_order", "true");
         log.info("Order {} was cancelled", order.getNumber());
+
+        eventPublisher.publishEvent(new OrderStatusChangeEvent(order, oldStatus, OrderStatus.CANCELLED));
 
         return ResponseEntity.ok(response);
     }

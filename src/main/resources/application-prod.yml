@@ -50,11 +50,31 @@ spring:
 
   main:
     banner-mode: off
+
   security:
     user:
       name: admin
       password: ${SECURITY_USER_PASSWORD}
       roles: ADMIN
+
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${EMAIL}
+    password: ${EMAIL_PASSWORD}
+    protocol: smtps
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          from: no-reply@baykul.ru
+          starttls:
+            enable: false
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 jwt:
   secret:

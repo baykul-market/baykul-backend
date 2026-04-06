@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Order Confirmed</title>
+</head>
+<body>
+<h2>Hello, <span th:text="${userName}">User</span>!</h2>
+<p>Order #<span th:text="${orderNumber}">123456</span> has been successfully confirmed!</p>
+
+<h3>Order Details:</h3>
+<p><strong>Status:</strong> Confirmed</p>
+<p><strong>Order Total:</strong> <span th:text="${totalAmount}">0.00 RUB</span></p>
+<p><strong>Order Date:</strong> <span th:text="${orderDate}">01/01/2024</span></p>
+
+<p>Thank you for your purchase! We have started processing your order.</p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+    Track Order
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>
