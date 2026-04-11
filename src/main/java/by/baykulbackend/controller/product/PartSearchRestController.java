@@ -1,5 +1,7 @@
 package by.baykulbackend.controller.product;
 
+import by.baykulbackend.database.dto.product.PartByArticlesRequestDto;
+import by.baykulbackend.database.dto.product.PartByArticlesResponseDto;
 import by.baykulbackend.database.dto.product.PartDto;
 import by.baykulbackend.database.dto.security.Views;
 import by.baykulbackend.services.product.PartService;
@@ -19,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -772,5 +775,84 @@ public class PartSearchRestController {
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
         return partService.searchPartsByBrand(brand, pageable).getContent();
+    }
+
+    @Operation(
+            summary = "Get parts by multiple articles",
+            description = "Retrieves a list of parts for the provided article numbers. Requires products:read permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Parts retrieved successfully",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = PartByArticlesResponseDto.class),
+                            examples = @ExampleObject(
+                                    name = "Multiple parts response example",
+                                    summary = "Parts search results",
+                                    value = """
+                                            {
+                                              "parts": [
+                                                {
+                                                  "id": "123e4567-e89b-12d3-a456-426614174001",
+                                                  "createdTs": "2024-01-15T10:30:00",
+                                                  "updatedTs": "2024-01-20T14:45:30",
+                                                  "article": "2405947",
+                                                  "name": "Engine Oil LL01 5W30",
+                                                  "weight": 150.4,
+                                                  "minCount": 3,
+                                                  "storageCount": 5,
+                                                  "returnPart": 3.01,
+                                                  "price": 7862.43,
+                                                  "currency": "EUR",
+                                                  "brand": "rolls royce"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized - JWT token missing or invalid",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "Unauthorized example",
+                                    value = """
+                                            {
+                                              "error": "Unauthorized",
+                                              "message": "Full authentication is required to access this resource"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "Forbidden - insufficient permissions",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "Forbidden example",
+                                    value = """
+                                            {
+                                              "error": "Forbidden",
+                                              "message": "Access Denied"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    @PreAuthorize("hasAnyAuthority('products:read')")
+    @PostMapping("/articles")
+    @JsonView(Views.PartView.Get.class)
+    public ResponseEntity<PartByArticlesResponseDto> searchByArticles(
+            @RequestBody PartByArticlesRequestDto request) {
+        return ResponseEntity.ok(partService.getPartsByArticles(request));
     }
 }

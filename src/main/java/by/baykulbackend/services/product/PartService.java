@@ -3,6 +3,8 @@ package by.baykulbackend.services.product;
 import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
+import by.baykulbackend.database.dto.product.PartByArticlesRequestDto;
+import by.baykulbackend.database.dto.product.PartByArticlesResponseDto;
 import by.baykulbackend.database.dto.product.PartDto;
 import by.baykulbackend.database.model.Permission;
 import by.baykulbackend.database.repository.product.IPartRepository;
@@ -323,6 +325,23 @@ public class PartService {
         }
 
         return partPage.map(this::convertToDto);
+    }
+
+    public PartByArticlesResponseDto getPartsByArticles(PartByArticlesRequestDto request) {
+        if (request == null || request.getArticles() == null || request.getArticles().isEmpty()) {
+            return PartByArticlesResponseDto.builder()
+                    .parts(Collections.emptyList())
+                    .build();
+        }
+
+        Set<String> articles = new HashSet<>(request.getArticles());
+        List<PartDto> parts = iPartRepository.findAllByArticleIn(articles).stream()
+                .map(this::convertToDto)
+                .toList();
+
+        return PartByArticlesResponseDto.builder()
+                .parts(parts)
+                .build();
     }
 
     /**
