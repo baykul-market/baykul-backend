@@ -17,7 +17,7 @@ public interface IOrderRepository extends JpaRepository<Order, UUID> {
     List<Order> findByUserId(UUID userId);
     Page<Order> findByUserLogin(String userLogin, Pageable pageable);
 
-    Optional<Order> findByUserLoginAndId(final String userLogin, final UUID id);
+    Optional<Order> findByUserLoginAndId(String userLogin, UUID id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Order c WHERE c.id = :id")
