@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 
 public class Validator {
     private static final String PHONE_NUMBER_REGEX = "^\\+[1-9]\\d{6,14}$";
-    private static final Pattern phoneNumberPattern = Pattern.compile(PHONE_NUMBER_REGEX);
+    private static final Pattern PHONE_NUMBER_PATTERN = Pattern.compile(PHONE_NUMBER_REGEX);
 
     /**
      * Validates a UUID string.
@@ -41,7 +41,7 @@ public class Validator {
             return false;
         }
 
-        Matcher matcher = phoneNumberPattern.matcher(phoneNumber);
+        Matcher matcher = PHONE_NUMBER_PATTERN.matcher(phoneNumber);
 
         return matcher.matches();
     }

@@ -36,7 +36,14 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.UUID;
+import java.util.Collections;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -426,7 +433,7 @@ public class OrderService {
         forBill = forBill != null ? forBill : false;
 
         if (hasNumber && hasStatus && forBill) {
-            if (BoxStatus.requiredForBillCreation.contains(status)) {
+            if (BoxStatus.REQUIRED_FOR_BILL_CREATION.contains(status)) {
                 return iOrderProductRepository.findAllByBillIsNullAndStatusAndNumberStartingWith(
                         status,
                         number.toString(),
@@ -441,13 +448,13 @@ public class OrderService {
         }
         else if (hasNumber && forBill) {
             return iOrderProductRepository.findAllByBillIsNullAndStatusInAndNumberStartingWith(
-                    BoxStatus.requiredForBillCreation,
+                    BoxStatus.REQUIRED_FOR_BILL_CREATION,
                     number.toString(),
                     pageable
             );
         }
         else if (hasStatus && forBill) {
-            if (BoxStatus.requiredForBillCreation.contains(status)) {
+            if (BoxStatus.REQUIRED_FOR_BILL_CREATION.contains(status)) {
                 return iOrderProductRepository.findAllByStatusAndBillIsNull(status, pageable);
             } else {
                 return new PageImpl<>(Collections.emptyList());
@@ -460,7 +467,7 @@ public class OrderService {
             return iOrderProductRepository.findAllByStatus(status, pageable);
         }
         else if (forBill) {
-            return iOrderProductRepository.findAllByBillIsNullAndStatusIn(BoxStatus.requiredForBillCreation, pageable);
+            return iOrderProductRepository.findAllByBillIsNullAndStatusIn(BoxStatus.REQUIRED_FOR_BILL_CREATION, pageable);
         }
 
         return iOrderProductRepository.findAll(pageable);
