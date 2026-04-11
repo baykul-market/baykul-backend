@@ -16,7 +16,7 @@ public enum BoxStatus {
     RETURNED,
     CANCELLED;
 
-    public static final Set<BoxStatus> requiredForBillCreation = Set.of(
+    public static final Set<BoxStatus> REQUIRED_FOR_BILL_CREATION = Set.of(
             TO_ORDER,
             ON_WAY
     );

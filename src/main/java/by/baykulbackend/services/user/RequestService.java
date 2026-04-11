@@ -12,8 +12,8 @@ import java.net.UnknownHostException;
 @Slf4j
 @Service
 public class RequestService {
-    private final String LOCALHOST_IPV4 = "127.0.0.1";
-    private final String LOCALHOST_IPV6 = "0:0:0:0:0:0:0:1";
+    private final String localhostIpv4 = "127.0.0.1";
+    private final String localhostIpv6 = "0:0:0:0:0:0:0:1";
 
     /**
      * Extracts the client's IP address from an HTTP request.
@@ -25,18 +25,18 @@ public class RequestService {
     public String getClientIp(@NonNull HttpServletRequest request) {
         String ipAddress = request.getHeader("X-Forwarded-For");
 
-        if(StringUtils.isBlank(ipAddress) || "unknown".equalsIgnoreCase(ipAddress)) {
+        if (StringUtils.isBlank(ipAddress) || "unknown".equalsIgnoreCase(ipAddress)) {
             ipAddress = request.getHeader("Proxy-Client-IP");
         }
 
-        if(StringUtils.isBlank(ipAddress) || "unknown".equalsIgnoreCase(ipAddress)) {
+        if (StringUtils.isBlank(ipAddress) || "unknown".equalsIgnoreCase(ipAddress)) {
             ipAddress = request.getHeader("WL-Proxy-Client-IP");
         }
 
-        if(StringUtils.isBlank(ipAddress) || "unknown".equalsIgnoreCase(ipAddress)) {
+        if (StringUtils.isBlank(ipAddress) || "unknown".equalsIgnoreCase(ipAddress)) {
             ipAddress = request.getRemoteAddr();
 
-            if(LOCALHOST_IPV4.equals(ipAddress) || LOCALHOST_IPV6.equals(ipAddress)) {
+            if (localhostIpv4.equals(ipAddress) || localhostIpv6.equals(ipAddress)) {
                 try {
                     InetAddress inetAddress = InetAddress.getLocalHost();
                     ipAddress = inetAddress.getHostAddress();
@@ -46,7 +46,7 @@ public class RequestService {
             }
         }
 
-        if(!StringUtils.isBlank(ipAddress)
+        if (!StringUtils.isBlank(ipAddress)
                 && ipAddress.length() > 15
                 && ipAddress.indexOf(",") > 0) {
             ipAddress = ipAddress.substring(0, ipAddress.indexOf(","));
