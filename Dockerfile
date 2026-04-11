@@ -1,25 +1,20 @@
-FROM gradle:8.5-jdk21 AS build
-WORKDIR /app
-COPY build.gradle settings.gradle ./
-COPY gradle ./gradle
-COPY gradlew ./
-RUN chmod +x gradlew
-RUN ./gradlew dependencies --no-daemon
-COPY src ./src
-RUN ./gradlew bootJar --no-daemon
-
+# Single stage build - expects the JAR to be built in GitHub Actions
 FROM eclipse-temurin:21-jre-jammy
 
 LABEL maintainer="Baykul Team" \
       version="1.0.0" \
       description="Baykul Backend Application"
+
 RUN groupadd --system --gid 1000 spring && \
     useradd --system --uid 1000 --gid spring spring
+
 RUN mkdir -p /app/logs && \
     mkdir -p /app/uploads && \
     mkdir -p /app/uploads/tmp && \
-    mkdir -p /app/config
-COPY --from=build --chown=spring:spring /app/build/libs/*.jar /app/application.jar
+    mkdir -p /app/config && \
+    chown -R spring:spring /app
+
+COPY --chown=spring:spring build/libs/*.jar /app/application.jar
 RUN chown -R spring:spring /app
 USER spring:spring
 WORKDIR /app
