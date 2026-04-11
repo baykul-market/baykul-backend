@@ -96,8 +96,13 @@ jobs:
               -e JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} \
               -e JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} \
               -e SECURITY_USER_PASSWORD=${{ secrets.SECURITY_USER_PASSWORD }} \
+              -e SMTP_HOST=${{ secrets.SMTP_HOST }} \
+              -e SMTP_PORT=${{ secrets.SMTP_PORT }} \
+              -e EMAIL=${{ secrets.EMAIL }} \
+              -e EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }} \
               -v /root/baykul-backend-prod/logs:/app/logs \
-              -v /root/bakul-backend-prod/uploads:/app/uploads \
+              -v /root/baykul-backend-prod/uploads:/app/uploads \
+              -v /root/baykul-backend-prod/uploads:/app/uploads/tmp \
               $FULL_IMAGE_NAME
 
             docker image prune -af --filter "until=24h" || true

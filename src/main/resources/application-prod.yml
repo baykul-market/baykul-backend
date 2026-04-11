@@ -1,3 +1,12 @@
+app:
+  url:
+    base-url: https://market.baykul.ru
+    orders-path: /orders
+  office:
+    address:
+      rus: "г. Москва, ул. Новослободская 67/69 этаж 1 пом Vlll офис 2е"
+      eng: "Moscow, Novoslobodskaya St., 67/69, floor 1, room VIII, office 2e"
+
 server:
   port: ${SERVER_PORT:8080}
   forward-headers-strategy: native
