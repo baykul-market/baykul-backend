@@ -22,4 +22,6 @@ public interface IOrderRepository extends JpaRepository<Order, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Order c WHERE c.id = :id")
     Optional<Order> findByIdWithLock(@Param("id") UUID id);
+
+    void deleteAllByUserId(UUID userId);
 }

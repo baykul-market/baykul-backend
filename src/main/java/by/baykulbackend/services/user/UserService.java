@@ -7,6 +7,7 @@ import by.baykulbackend.database.dao.user.Localization;
 import by.baykulbackend.database.dao.user.Profile;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.model.Role;
+import by.baykulbackend.database.repository.order.IOrderRepository;
 import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
@@ -38,6 +39,7 @@ import java.util.UUID;
 public class UserService {
     private final IUserRepository iUserRepository;
     private final IRefreshTokenRepository iRefreshTokenRepository;
+    private final IOrderRepository iOrderRepository;
     private final AuthService authService;
     private final PasswordEncoderConfig passwordEncoderConfig;
     private final PriceService priceService;
@@ -132,8 +134,9 @@ public class UserService {
      */
     public ResponseEntity<?> deleteUserById(UUID id) {
         Map<String, String> response = new HashMap<>();
-        iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
+        User user = iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
 
+        iOrderRepository.deleteAllByUserId(user.getId());
         iUserRepository.deleteById(id);
         response.put("delete_user", "true");
         log.info("Delete user with id = {} -> {}", id, authService.getAuthInfo().getPrincipal());
@@ -469,7 +472,7 @@ public class UserService {
             return true;
         }
 
-        if (user.getMarkupPercentage().compareTo(BigDecimal.ZERO) < 0) {
+        if (user.getMarkupPercentage() != null && user.getMarkupPercentage().compareTo(BigDecimal.ZERO) < 0) {
             response.put("error_markup_percentage", "Invalid markup percentage");
             log.warn("Invalid markup percentage");
             return true;
