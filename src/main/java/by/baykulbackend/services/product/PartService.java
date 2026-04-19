@@ -33,6 +33,8 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Collections;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -285,9 +287,10 @@ public class PartService {
             return new PageImpl<>(new ArrayList<>(), pageable, content.size());
         }
 
+        User user = getCurrentUser();
         List<Part> pageContent = content.subList(start, end);
         List<PartDto> dtoContent = pageContent.stream()
-                .map(this::convertToDto)
+                .map(part -> convertToDto(part, user))
                 .toList();
 
         return new PageImpl<>(dtoContent, pageable, content.size());
@@ -343,13 +346,23 @@ public class PartService {
                     .build();
         }
 
-        Set<String> articles = new HashSet<>(request.getArticles());
-        List<PartDto> parts = iPartRepository.findAllByArticleIn(articles).stream()
-                .map(this::convertToDto)
+        List<String> inputArticles = request.getArticles();
+        Set<String> uniqueArticles = new HashSet<>(inputArticles);
+        User user = getCurrentUser();
+
+        // Fetch found parts and map them by article for quick lookup
+        Map<String, PartDto> partMap = iPartRepository.findAllByArticleIn(uniqueArticles).stream()
+                .map(part -> convertToDto(part, user))
+                .collect(Collectors.toMap(PartDto::getArticle, p -> p, (p1, p2) -> p1));
+
+        // Reconstruct the list based on input order, preserving duplicates if they were in the input
+        List<PartDto> orderedParts = inputArticles.stream()
+                .map(partMap::get)
+                .filter(Objects::nonNull)
                 .toList();
 
         return PartByArticlesResponseDto.builder()
-                .parts(parts)
+                .parts(orderedParts)
                 .build();
     }
 
@@ -357,9 +370,18 @@ public class PartService {
      * Converts Part into PartDto
      */
     private PartDto convertToDto(Part part) {
-        User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
-                .orElseThrow(() -> new NotFoundException("User not found"));
+        return convertToDto(part, getCurrentUser());
+    }
 
+    private User getCurrentUser() {
+        return iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
+                .orElseThrow(() -> new NotFoundException("User not found"));
+    }
+
+    /**
+     * Converts Part into PartDto using the provided user context
+     */
+    private PartDto convertToDto(Part part, User user) {
         BigDecimal price = priceService.calculateProductPrice(
                 part,
                 part.getStorageCount() == null || part.getStorageCount() == 0,
