@@ -13,6 +13,8 @@ import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
 import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.utils.Validator;
+import by.baykulbackend.services.email.EmailService;
+import org.thymeleaf.context.Context;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -43,6 +45,7 @@ public class UserService {
     private final AuthService authService;
     private final PasswordEncoderConfig passwordEncoderConfig;
     private final PriceService priceService;
+    private final EmailService emailService;
 
     /**
      * Creates a new user in the system.
@@ -118,11 +121,26 @@ public class UserService {
      */
     public ResponseEntity<?> registerUser(User user) {
         user.setRole(Role.USER);
-        user.setBlocked(null);
+        user.setBlocked(true);
         user.setCanPayLater(null);
         user.setMarkupPercentage(null);
 
-        return createUser(user);
+        ResponseEntity<?> response = createUser(user);
+
+        if (response.getStatusCode().is2xxSuccessful()) {
+            List<User> admins = iUserRepository.findAllByRole(Role.ADMIN);
+            for (User admin : admins) {
+                if (admin.getEmail() != null) {
+                    Context context = new Context();
+                    context.setVariable("login", user.getLogin() != null ? user.getLogin() : "N/A");
+                    context.setVariable("email", user.getEmail() != null ? user.getEmail() : "N/A");
+                    context.setVariable("phone", user.getPhoneNumber() != null ? user.getPhoneNumber() : "N/A");
+                    emailService.sendEmail(admin.getEmail(), "New User Registered", "new-user-registration", admin.getLocalization() != null ? admin.getLocalization() : Localization.RUS, context);
+                }
+            }
+        }
+
+        return response;
     }
 
     /**
