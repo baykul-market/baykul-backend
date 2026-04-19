@@ -45,19 +45,25 @@ public class PartSearchRestControllerTest {
     @Test
     public void searchByArticlesShouldReturnParts() throws Exception {
         // Arrange
-        List<String> articles = List.of("2405947", "2405948");
+        List<String> articles = List.of("2405948", "2405947");
         PartByArticlesRequestDto request = PartByArticlesRequestDto.builder()
                 .articles(articles)
                 .build();
 
         PartDto part1 = PartDto.builder()
+                .article("2405948")
+                .name("Oil Filter")
+                .brand("BMW")
+                .build();
+
+        PartDto part2 = PartDto.builder()
                 .article("2405947")
                 .name("Engine Oil")
                 .brand("BMW")
                 .build();
 
         PartByArticlesResponseDto response = PartByArticlesResponseDto.builder()
-                .parts(List.of(part1))
+                .parts(List.of(part1, part2))
                 .build();
 
         when(partService.getPartsByArticles(any(PartByArticlesRequestDto.class))).thenReturn(response);
@@ -69,8 +75,10 @@ public class PartSearchRestControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.parts").isArray())
-                .andExpect(jsonPath("$.parts[0].article").value("2405947"))
-                .andExpect(jsonPath("$.parts[0].name").value("Engine Oil"));
+                .andExpect(jsonPath("$.parts[0].article").value("2405948"))
+                .andExpect(jsonPath("$.parts[0].name").value("Oil Filter"))
+                .andExpect(jsonPath("$.parts[1].article").value("2405947"))
+                .andExpect(jsonPath("$.parts[1].name").value("Engine Oil"));
 
         verify(partService).getPartsByArticles(any(PartByArticlesRequestDto.class));
     }
