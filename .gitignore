@@ -9,6 +9,8 @@ uploads/
 !**/src/test/**/build/
 swagger.json
 .env
+docs/
+baykul-backend.wiki/
 
 ### STS ###
 .apt_generated

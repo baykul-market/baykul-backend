@@ -2,6 +2,7 @@ package by.baykulbackend.database.dao.user;
 
 import by.baykulbackend.database.dao.balance.Balance;
 import by.baykulbackend.database.dao.cart.Cart;
+import by.baykulbackend.database.dao.finance.DeliveryCostConfig;
 import by.baykulbackend.database.model.Role;
 import by.baykulbackend.database.dto.security.Views;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
@@ -198,6 +199,16 @@ public class User {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     @JsonView(Views.UserFullView.class)
     private Cart cart;
+
+    @Schema(
+            description = "Individual delivery rate rules assigned to this user. " +
+                    "When present, these override the global delivery rules. " +
+                    "Only visible in admin responses.",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY)
+    @JsonView(Views.UserAdminView.class)
+    private List<DeliveryCostConfig> deliveryRates;
 
     @Override
     public boolean equals(Object o) {

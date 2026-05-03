@@ -10,7 +10,7 @@ import java.util.UUID;
 @Data
 @Schema(description = "Delivery cost configuration rule")
 public class DeliveryCostConfigDto {
-    
+
     @Schema(
             description = "Unique identifier",
             accessMode = Schema.AccessMode.READ_ONLY
@@ -37,4 +37,13 @@ public class DeliveryCostConfigDto {
             requiredMode = Schema.RequiredMode.REQUIRED
     )
     private BigDecimal value;
+
+    @Schema(
+            description = "UUID of the user this rule belongs to. " +
+                    "Null means this is a global rule applied as a fallback for all users. " +
+                    "When set, this rule acts as a personal override for the specified user.",
+            nullable = true,
+            example = "123e4567-e89b-12d3-a456-426614174000"
+    )
+    private UUID userId;
 }

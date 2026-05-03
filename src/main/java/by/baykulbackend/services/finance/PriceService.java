@@ -24,13 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.HashMap;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
-import java.util.Collections;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -49,8 +49,8 @@ public class PriceService {
 
 
     /**
-     * Retrieves all price configurations (markup, currency and delivery rules).
-     * If no configuration exists, creates default one.
+     * Retrieves all global price configurations (markup, currency and global delivery rules).
+     * If no configuration exists, creates a default one.
      *
      * @return PriceConfigDto containing markup percentage, system currency and delivery cost rules
      */
@@ -67,12 +67,31 @@ public class PriceService {
         dto.setRoundingScale(config.getRoundingScale());
         dto.setRoundingMode(config.getRoundingMode());
 
-        List<DeliveryCostConfig> deliveryConfigs = iDeliveryCostConfigRepository.findAllByOrderByMinimumSumAsc();
+        // Return only global rules in the general config view
+        List<DeliveryCostConfig> deliveryConfigs = iDeliveryCostConfigRepository.findAllByUserIsNullOrderByMinimumSumAsc();
         dto.setDeliveryCostConfigs(deliveryConfigs.stream()
                 .map(this::mapToDeliveryDto)
                 .collect(Collectors.toList()));
 
         return dto;
+    }
+
+    /**
+     * Retrieves all delivery cost rules for a specific user.
+     *
+     * @param userId UUID of the target user
+     * @return list of delivery cost rule DTOs belonging to that user
+     * @throws NotFoundException if the user is not found
+     */
+    @Transactional(readOnly = true)
+    public List<DeliveryCostConfigDto> getDeliveryRulesForUser(UUID userId) {
+        if (!iUserRepository.existsById(userId)) {
+            throw new NotFoundException("User not found: " + userId);
+        }
+
+        return iDeliveryCostConfigRepository.findAllByUserIdOrderByMinimumSumAsc(userId).stream()
+                .map(this::mapToDeliveryDto)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -125,8 +144,9 @@ public class PriceService {
     }
 
     /**
-     * Updates delivery cost rule.
-     * For SUM type, currency is required and defaults to system currency if not provided.
+     * Creates a new delivery cost rule.
+     * If {@code dto.getUserId()} is set, the rule is created as a personal override for that user.
+     * Otherwise, it is created as a global default rule.
      *
      * @param dto Delivery cost rule data
      * @return ResponseEntity with success/error message
@@ -135,15 +155,21 @@ public class PriceService {
     public ResponseEntity<?> createDeliveryCostRule(DeliveryCostConfigDto dto) {
         Map<String, Object> response = new HashMap<>();
 
-        if (isNotValidDeliveryCostConfigDto(dto, response)) {
+        User owner = resolveOwner(dto.getUserId(), response);
+        if (owner == null && dto.getUserId() != null) {
+            // resolveOwner put an error into response already
+            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+        }
+
+        if (isNotValidDeliveryCostConfigDto(dto, owner, response)) {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
         DeliveryCostConfig config = new DeliveryCostConfig();
-
         config.setMinimumSum(dto.getMinimumSum());
         config.setMarkupType(dto.getMarkupType());
         config.setValue(dto.getValue());
+        config.setUser(owner);
 
         iDeliveryCostConfigRepository.save(config);
 
@@ -155,8 +181,8 @@ public class PriceService {
     }
 
     /**
-     * Updates delivery cost rule.
-     * For SUM type, currency is required and defaults to system currency if not provided.
+     * Updates an existing delivery cost rule.
+     * The rule's user association cannot be changed via this method; it is determined at creation.
      *
      * @param dto Delivery cost rule data
      * @return ResponseEntity with success/error message
@@ -170,12 +196,14 @@ public class PriceService {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
-        if (isNotValidDeliveryCostConfigDto(dto, response)) {
-            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-        }
-
         DeliveryCostConfig config = iDeliveryCostConfigRepository.findById(dto.getId())
                 .orElseThrow(() -> new NotFoundException("Delivery cost rule not found"));
+
+        // Validate against the existing owner of the rule (immutable on update)
+        User owner = config.getUser();
+        if (isNotValidDeliveryCostConfigDto(dto, owner, response)) {
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
 
         config.setMinimumSum(dto.getMinimumSum());
         config.setMarkupType(dto.getMarkupType());
@@ -262,13 +290,21 @@ public class PriceService {
     }
 
     /**
-     * Calculates delivery cost based on order sum.
+     * Calculates delivery cost based on order sum using the Fallback Model.
      *
-     * @param orderSum total order amount
-     * @return calculated delivery cost
+     * <p>Lookup strategy:
+     * <ol>
+     *   <li>If {@code user} is not null and has a UUID, look for a personal rule first.</li>
+     *   <li>If no personal rule exists, fall back to the global rule (user_id IS NULL).</li>
+     *   <li>If neither matches, delivery cost is zero.</li>
+     * </ol>
+     *
+     * @param orderSum total order amount in system currency
+     * @param user     the user placing the order (may be null for anonymous/fallback-only lookup)
+     * @return calculated delivery cost in system currency
      */
     @Transactional(readOnly = true)
-    public BigDecimal calculateDeliveryCost(BigDecimal orderSum) {
+    public BigDecimal calculateDeliveryCost(BigDecimal orderSum, User user) {
         if (orderSum == null || orderSum.compareTo(BigDecimal.ZERO) <= 0) {
             return BigDecimal.ZERO;
         }
@@ -282,7 +318,15 @@ public class PriceService {
                 orderSum, getSystemCurrency(), deliveryCurrency
         );
 
-        Optional<DeliveryCostConfig> config = iDeliveryCostConfigRepository.findDeliveryCost(orderSumInDeliveryCurrency);
+        Optional<DeliveryCostConfig> config;
+
+        if (user != null && user.getId() != null) {
+            // Fallback Model: personal rule first, global rule as fallback
+            config = iDeliveryCostConfigRepository.findDeliveryCost(orderSumInDeliveryCurrency, user.getId());
+        } else {
+            // Anonymous / no user context: global rules only
+            config = iDeliveryCostConfigRepository.findDeliveryCost(orderSumInDeliveryCurrency);
+        }
 
         if (config.isEmpty()) {
             return BigDecimal.ZERO;
@@ -292,7 +336,8 @@ public class PriceService {
         BigDecimal deliveryCostInDeliveryCurrency;
 
         if (rule.getMarkupType() == DeliveryMarkupType.PERCENTAGE) {
-            deliveryCostInDeliveryCurrency = orderSumInDeliveryCurrency.multiply(rule.getValue()).setScale(2, RoundingMode.HALF_UP);
+            deliveryCostInDeliveryCurrency = orderSumInDeliveryCurrency.multiply(rule.getValue())
+                    .setScale(2, RoundingMode.HALF_UP);
         } else {
             deliveryCostInDeliveryCurrency = rule.getValue();
         }
@@ -303,11 +348,24 @@ public class PriceService {
     }
 
     /**
+     * Calculates delivery cost based on order sum using global rules only (no user context).
+     *
+     * @param orderSum total order amount in system currency
+     * @return calculated delivery cost in system currency
+     * @deprecated Use {@link #calculateDeliveryCost(BigDecimal, User)} to support per-user rates.
+     */
+    @Deprecated
+    @Transactional(readOnly = true)
+    public BigDecimal calculateDeliveryCost(BigDecimal orderSum) {
+        return calculateDeliveryCost(orderSum, null);
+    }
+
+    /**
      * Calculates final price for a part.
      *
-     * @param part the part with price and currency
+     * @param part         the part with price and currency
      * @param withDelivery true to include delivery cost
-     * @param user user entity to count price for
+     * @param user         user entity to count price for (determines personal markup and delivery rate)
      * @return final price in system currency
      */
     @Transactional(readOnly = true)
@@ -325,7 +383,8 @@ public class PriceService {
         BigDecimal finalPrice = basePrice;
 
         if (withDelivery) {
-            BigDecimal deliveryCost = calculateDeliveryCost(basePrice);
+            // Pass the user so the Fallback Model is applied for delivery as well
+            BigDecimal deliveryCost = calculateDeliveryCost(basePrice, user);
             finalPrice = finalPrice.add(deliveryCost);
         }
 
@@ -342,9 +401,9 @@ public class PriceService {
 
     /**
      * Calculates final price for a part.
-     * Takes currently authenticated user's params.
+     * Takes the currently authenticated user's params (markup + personal delivery rates).
      *
-     * @param part the part with price and currency
+     * @param part         the part with price and currency
      * @param withDelivery true to include delivery cost
      * @return final price in system currency
      */
@@ -357,6 +416,10 @@ public class PriceService {
         );
     }
 
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Private helpers
+    // ──────────────────────────────────────────────────────────────────────────
 
     /**
      * Creates default price configuration.
@@ -383,11 +446,45 @@ public class PriceService {
         dto.setMinimumSum(config.getMinimumSum());
         dto.setMarkupType(config.getMarkupType());
         dto.setValue(config.getValue());
+        dto.setUserId(config.getUser() != null ? config.getUser().getId() : null);
 
         return dto;
     }
 
-    private boolean isNotValidDeliveryCostConfigDto(DeliveryCostConfigDto dto, Map<String, Object> response) {
+    /**
+     * Resolves an optional owner User from a userId.
+     * Returns null (no owner) when userId is null — meaning a global rule.
+     * If userId is non-null but user is not found, puts an error into the response map and returns null.
+     *
+     * @param userId   optional user UUID (null → global rule)
+     * @param response mutable response map to put errors into
+     * @return resolved User, or null if userId was null
+     */
+    private User resolveOwner(UUID userId, Map<String, Object> response) {
+        if (userId == null) {
+            return null;
+        }
+
+        Optional<User> user = iUserRepository.findById(userId);
+        if (user.isEmpty()) {
+            response.put("error", "User not found: " + userId);
+            return null;
+        }
+
+        return user.get();
+    }
+
+    /**
+     * Validates a DeliveryCostConfigDto, taking into account its owner (user).
+     * Duplicate-check is user-aware: global rules are checked against global rules only,
+     * and user-specific rules are checked within that user's scope.
+     *
+     * @param dto      the DTO to validate
+     * @param owner    the resolved User owner (null = global rule)
+     * @param response mutable response map to put errors into
+     * @return true if validation failed (rule is NOT valid)
+     */
+    private boolean isNotValidDeliveryCostConfigDto(DeliveryCostConfigDto dto, User owner, Map<String, Object> response) {
         if (dto.getMinimumSum() == null || dto.getMinimumSum().compareTo(BigDecimal.ZERO) < 0) {
             response.put("error", "Minimum sum must be greater than or equal to zero");
             return true;
@@ -403,11 +500,22 @@ public class PriceService {
             return true;
         }
 
-        if (iDeliveryCostConfigRepository.existsByMinimumSumAndIdNotIn(
-                dto.getMinimumSum(), Collections.singletonList(dto.getId())
-        )) {
-            response.put("error", "Delivery cost rule already exists");
-            return true;
+        if (owner == null) {
+            // Global rule duplicate check
+            if (iDeliveryCostConfigRepository.existsByMinimumSumAndUserIsNullAndIdNotIn(
+                    dto.getMinimumSum(), Collections.singletonList(dto.getId())
+            )) {
+                response.put("error", "Global delivery cost rule with this minimum sum already exists");
+                return true;
+            }
+        } else {
+            // User-specific rule duplicate check
+            if (iDeliveryCostConfigRepository.existsByMinimumSumAndUserIdAndIdNotIn(
+                    dto.getMinimumSum(), owner.getId(), Collections.singletonList(dto.getId())
+            )) {
+                response.put("error", "Delivery cost rule with this minimum sum already exists for this user");
+                return true;
+            }
         }
 
         return false;
