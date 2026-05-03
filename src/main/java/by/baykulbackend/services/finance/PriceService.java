@@ -63,6 +63,9 @@ public class PriceService {
 
         dto.setMarkupPercentage(config.getMarkupPercentage());
         dto.setSystemCurrency(config.getCurrency());
+        dto.setDeliveryCurrency(config.getDeliveryCurrency());
+        dto.setRoundingScale(config.getRoundingScale());
+        dto.setRoundingMode(config.getRoundingMode());
 
         List<DeliveryCostConfig> deliveryConfigs = iDeliveryCostConfigRepository.findAllByOrderByMinimumSumAsc();
         dto.setDeliveryCostConfigs(deliveryConfigs.stream()
@@ -100,6 +103,16 @@ public class PriceService {
             }
 
             config.setCurrency(configDto.getSystemCurrency());
+        }
+
+        if (configDto.getDeliveryCurrency() != null) {
+            config.setDeliveryCurrency(configDto.getDeliveryCurrency());
+        }
+        if (configDto.getRoundingScale() != null) {
+            config.setRoundingScale(configDto.getRoundingScale());
+        }
+        if (configDto.getRoundingMode() != null) {
+            config.setRoundingMode(configDto.getRoundingMode());
         }
 
         iPriceConfigRepository.save(config);
@@ -260,19 +273,33 @@ public class PriceService {
             return BigDecimal.ZERO;
         }
 
-        Optional<DeliveryCostConfig> config = iDeliveryCostConfigRepository.findDeliveryCost(orderSum);
+        PriceConfig priceConfig = iPriceConfigRepository.findFirst().orElse(null);
+        Currency deliveryCurrency = (priceConfig != null && priceConfig.getDeliveryCurrency() != null)
+                ? priceConfig.getDeliveryCurrency()
+                : getSystemCurrency();
+
+        BigDecimal orderSumInDeliveryCurrency = currencyExchangeService.exchange(
+                orderSum, getSystemCurrency(), deliveryCurrency
+        );
+
+        Optional<DeliveryCostConfig> config = iDeliveryCostConfigRepository.findDeliveryCost(orderSumInDeliveryCurrency);
 
         if (config.isEmpty()) {
             return BigDecimal.ZERO;
         }
 
         DeliveryCostConfig rule = config.get();
+        BigDecimal deliveryCostInDeliveryCurrency;
 
         if (rule.getMarkupType() == DeliveryMarkupType.PERCENTAGE) {
-            return orderSum.multiply(rule.getValue()).setScale(2, RoundingMode.HALF_UP);
+            deliveryCostInDeliveryCurrency = orderSumInDeliveryCurrency.multiply(rule.getValue()).setScale(2, RoundingMode.HALF_UP);
         } else {
-            return rule.getValue();
+            deliveryCostInDeliveryCurrency = rule.getValue();
         }
+
+        return currencyExchangeService.exchange(
+                deliveryCostInDeliveryCurrency, deliveryCurrency, getSystemCurrency()
+        );
     }
 
     /**
@@ -302,9 +329,13 @@ public class PriceService {
 
         BigDecimal markupAmount = finalPrice.multiply(userMarkupPercentage)
                 .setScale(2, RoundingMode.HALF_UP);
-        finalPrice = finalPrice.add(markupAmount).setScale(2, RoundingMode.HALF_UP);
+        finalPrice = finalPrice.add(markupAmount);
 
-        return finalPrice;
+        PriceConfig config = iPriceConfigRepository.findFirst().orElse(null);
+        Integer scale = (config != null && config.getRoundingScale() != null) ? config.getRoundingScale() : 2;
+        RoundingMode mode = (config != null && config.getRoundingMode() != null) ? config.getRoundingMode() : RoundingMode.HALF_UP;
+
+        return finalPrice.setScale(scale, mode);
     }
 
     /**

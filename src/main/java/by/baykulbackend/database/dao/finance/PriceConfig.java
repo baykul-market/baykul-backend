@@ -79,4 +79,31 @@ public class PriceConfig {
     @Column(name = "currency", nullable = false)
     @JsonView({Views.ConfigView.Get.class, Views.ConfigView.Post.class, Views.ConfigView.Patch.class})
     private Currency currency;
+    @Schema(
+            description = "Currency for which delivery rules are calculated",
+            example = "EUR",
+            enumAsRef = true
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_currency")
+    @JsonView({Views.ConfigView.Get.class, Views.ConfigView.Post.class, Views.ConfigView.Patch.class})
+    private Currency deliveryCurrency;
+
+    @Schema(
+            description = "Scale for rounding prices (e.g. 2 for pennies, 0 for units, -2 for hundreds)",
+            example = "-2"
+    )
+    @Column(name = "rounding_scale")
+    @JsonView({Views.ConfigView.Get.class, Views.ConfigView.Post.class, Views.ConfigView.Patch.class})
+    private Integer roundingScale;
+
+    @Schema(
+            description = "Mathematical rounding mode",
+            example = "CEILING",
+            enumAsRef = true
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rounding_mode")
+    @JsonView({Views.ConfigView.Get.class, Views.ConfigView.Post.class, Views.ConfigView.Patch.class})
+    private java.math.RoundingMode roundingMode;
 }
