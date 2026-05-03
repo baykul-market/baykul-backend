@@ -3,6 +3,7 @@ package by.baykulbackend.controller.user;
 import by.baykulbackend.database.dao.balance.Balance;
 import by.baykulbackend.database.dao.user.RefreshToken;
 import by.baykulbackend.database.dao.user.User;
+import by.baykulbackend.database.dto.user.UserPatchRequest;
 import by.baykulbackend.database.dto.security.Views;
 import by.baykulbackend.database.repository.balance.IBalanceRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
@@ -21,6 +22,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -266,8 +268,8 @@ public class ProfileRestController {
     @Transactional
     @PreAuthorize("hasAnyAuthority('profile:write')")
     @PatchMapping
-    public ResponseEntity<?> updateProfile(@RequestBody @JsonView(Views.UserView.Patch.class) User user) {
-        return userService.updateProfile(user);
+    public ResponseEntity<?> updateProfile(@Valid @RequestBody UserPatchRequest patch) {
+        return userService.updateProfile(patch);
     }
 
     @Operation(

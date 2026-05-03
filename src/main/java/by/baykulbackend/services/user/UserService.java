@@ -11,6 +11,7 @@ import by.baykulbackend.database.repository.order.IOrderRepository;
 import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.database.dto.user.UserPatchRequest;
 import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.utils.Validator;
 import by.baykulbackend.services.email.EmailService;
@@ -77,10 +78,6 @@ public class UserService {
 
         if (user.getCanPayLater() == null) {
             user.setCanPayLater(false);
-        }
-
-        if (user.getMarkupPercentage() == null) {
-            user.setMarkupPercentage(priceService.getMarkupPercentage());
         }
 
         if (user.getLocalization() == null) {
@@ -164,178 +161,151 @@ public class UserService {
 
     /**
      * Updates an existing user's information taking user to update from authentication principal.
-     * Only updates non-null fields from the provided user object.
+     * Only updates non-null fields from the provided patch object.
+     * Sensitive fields like role, blocked, and markupPercentage are cleared to prevent unauthorized changes.
      *
-     * @param user the User object containing updated fields
+     * @param patch the UserPatchRequest object containing updated fields
      * @return ResponseEntity with success/error message
      * @throws NotFoundException if no user is found with authentication principal
      */
-    public ResponseEntity<?> updateProfile(User user) {
+    public ResponseEntity<?> updateProfile(UserPatchRequest patch) {
         User userFromDB = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
-        user.setBlocked(null);
-        user.setCanPayLater(null);
-        user.setMarkupPercentage(null);
-        user.setRole(null);
-        user.setPhoneNumber(null);
-        user.setEmail(null);
+        patch.setBlocked(null);
+        patch.setCanPayLater(null);
+        patch.setMarkupPercentage(null);
+        patch.setRole(null);
+        patch.setPhoneNumber(null);
+        patch.setEmail(null);
 
-        return updateUser(userFromDB, user);
+        return updateUserById(userFromDB.getId(), patch);
     }
 
     /**
-     * Updates an existing user's information.
-     * Only updates non-null fields from the provided user object.
+     * Updates an existing user's information from a dedicated patch DTO.
      *
-     * @param id   the UUID of the user to update
-     * @param user the User object containing updated fields
+     * <p>This overload is the <em>robust</em> path for admin PATCH requests because
+     * {@link UserPatchRequest#getMarkupPercentage()} carries three distinct states:
+     * <ul>
+     *   <li>{@code null} – field was absent in JSON → do not touch the stored value.</li>
+     *   <li>{@code Optional.empty()} – field was JSON {@code null} → clear to {@code null}
+     *       so the global pricing fallback is used.</li>
+     *   <li>{@code Optional.of(v)} – set to {@code v}.</li>
+     * </ul>
+     *
+     * @param id    the UUID of the user to update
+     * @param patch the patch DTO containing fields to update
      * @return ResponseEntity with success/error message
      * @throws NotFoundException if no user is found with the given ID
      */
-    public ResponseEntity<?> updateUserById(UUID id, User user) {
+    public ResponseEntity<?> updateUserById(UUID id, UserPatchRequest patch) {
         User userFromDB = iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
-
-        return updateUser(userFromDB, user);
-    }
-
-    /**
-     * Updates an existing user's information.
-     * Only updates non-null fields from the provided user object.
-     * Validates input.
-     *
-     * @param userFromDB the User object to update
-     * @param user       the User object containing updated fields
-     * @return ResponseEntity with success/error message
-     */
-    private ResponseEntity<?> updateUser(User userFromDB, User user) {
         Map<String, String> response = new HashMap<>();
-        UUID id = userFromDB.getId();
+        boolean updated = false;
 
-        if (isNotValidUser(user, response)) {
-            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-        }
-
-        if (hasNotUniqueData(user, response)) {
+        if (checkUniqueData(patch.getLogin(), patch.getEmail(), patch.getPhoneNumber(), id, response)) {
             return new ResponseEntity<>(response, HttpStatus.CONFLICT);
         }
 
-        if (user.getLogin() != null) {
-            if (StringUtils.isBlank(user.getLogin())) {
-                response.put("error_login", "Login must not be empty");
-                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-            }
-
-            userFromDB.setLogin(user.getLogin());
-            log.info("User's login with id {} has been updated -> {}",
-                    id, authService.getAuthInfo().getPrincipal());
+        if (patch.getLogin() != null) {
+            updated |= updateField(patch.getLogin(), userFromDB.getLogin(), userFromDB::setLogin, "login", id);
         }
 
-        if (user.getEmail() != null) {
-            if (StringUtils.isBlank(user.getEmail())) {
-                if (StringUtils.isBlank(userFromDB.getPhoneNumber())
-                        || (user.getPhoneNumber() != null && StringUtils.isBlank(userFromDB.getPhoneNumber()))) {
+        if (patch.getEmail() != null) {
+            String newEmail = StringUtils.isBlank(patch.getEmail()) ? null : patch.getEmail();
+            if (newEmail == null) {
+                boolean willHavePhone = patch.getPhoneNumber() != null 
+                        ? !StringUtils.isBlank(patch.getPhoneNumber()) 
+                        : !StringUtils.isBlank(userFromDB.getPhoneNumber());
+                if (!willHavePhone) {
                     response.put("error_email", "One of the following must be filled in: email, phone number");
                     return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
                 }
-                userFromDB.setEmail(null);
-            } else {
-                userFromDB.setEmail(user.getEmail());
             }
-            log.info("User's email with id {} has been updated -> {}",
-                    id, authService.getAuthInfo().getPrincipal());
+            updated |= updateField(newEmail, userFromDB.getEmail(), userFromDB::setEmail, "email", id);
         }
 
-        if (user.getPhoneNumber() != null) {
-            if (StringUtils.isBlank(user.getPhoneNumber())) {
-                if (userFromDB.getEmail() == null) {
+        if (patch.getPhoneNumber() != null) {
+            String newPhone = StringUtils.isBlank(patch.getPhoneNumber()) ? null : patch.getPhoneNumber();
+            if (newPhone == null) {
+                boolean willHaveEmail = patch.getEmail() != null 
+                        ? !StringUtils.isBlank(patch.getEmail()) 
+                        : !StringUtils.isBlank(userFromDB.getEmail());
+                if (!willHaveEmail) {
                     response.put("error_phone_number", "One of the following must be filled in: email, phone number");
                     return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
                 }
-                userFromDB.setPhoneNumber(null);
-            } else {
-                userFromDB.setPhoneNumber(user.getPhoneNumber());
             }
-            log.info("User's phone number with id {} has been updated -> {}",
-                    id, authService.getAuthInfo().getPrincipal());
+            updated |= updateField(newPhone, userFromDB.getPhoneNumber(), userFromDB::setPhoneNumber, "phone number", id);
         }
 
-        if (user.getPassword() != null) {
-            userFromDB.setPassword(passwordEncoderConfig.getPasswordEncoder().encode(user.getPassword()));
+        if (patch.getPassword() != null) {
+            userFromDB.setPassword(passwordEncoderConfig.getPasswordEncoder().encode(patch.getPassword()));
             iRefreshTokenRepository.deleteByUser(userFromDB);
-            log.info("The password of User with the id {} has been updated -> {}",
-                    id, authService.getAuthInfo().getPrincipal());
+            updated = true;
+            log.info("The password of User with the id {} has been updated -> {}", id, authService.getAuthInfo().getPrincipal());
         }
 
-        if (user.getBlocked() != null && user.getBlocked() != userFromDB.getBlocked()) {
-            userFromDB.setBlocked(user.getBlocked());
+        if (patch.getRole() != null) {
+            updated |= updateField(patch.getRole(), userFromDB.getRole(), userFromDB::setRole, "role", id);
+        }
 
-            if (user.getBlocked()) {
+        if (patch.getBlocked() != null && !patch.getBlocked().equals(userFromDB.getBlocked())) {
+            userFromDB.setBlocked(patch.getBlocked());
+            if (patch.getBlocked()) {
                 iRefreshTokenRepository.deleteByUser(userFromDB);
-                log.info("The sessions of User with the id {} has been deleted -> {}",
-                        id, authService.getAuthInfo().getPrincipal());
+                log.info("The sessions of User with the id {} has been deleted -> {}", id, authService.getAuthInfo().getPrincipal());
+            }
+            updated = true;
+            log.info("The blocked of User with the id {} has been updated -> {}", id, authService.getAuthInfo().getPrincipal());
+        }
+
+        if (patch.getCanPayLater() != null) {
+            updated |= updateField(patch.getCanPayLater(), userFromDB.getCanPayLater(), userFromDB::setCanPayLater, "canPayLater", id);
+        }
+
+        if (patch.getLocalization() != null) {
+            updated |= updateField(patch.getLocalization(), userFromDB.getLocalization(), userFromDB::setLocalization, "localization", id);
+        }
+
+        if (patch.getMarkupPercentage() != null) {
+            BigDecimal newMarkup = patch.getMarkupPercentage().orElse(null);
+            updated |= updateField(newMarkup, userFromDB.getMarkupPercentage(), userFromDB::setMarkupPercentage, "markup percentage", id);
+        }
+
+        if (patch.getProfile() != null) {
+            Profile profile = patch.getProfile();
+            Profile profileFromDb = userFromDB.getProfile();
+            if (profileFromDb == null) {
+                profileFromDb = new Profile();
+                profileFromDb.setUser(userFromDB);
+                userFromDB.setProfile(profileFromDb);
             }
 
-            log.info("The blocked of User with the id {} has been updated -> {}",
-                    id, authService.getAuthInfo().getPrincipal());
-        }
-
-        if (user.getCanPayLater() != null && user.getCanPayLater() != userFromDB.getCanPayLater()) {
-            userFromDB.setCanPayLater(user.getCanPayLater());
-            log.info("User's canPayLater param with id {} has been updated -> {}",
-                    id, authService.getAuthInfo().getPrincipal());
-        }
-
-        if (user.getMarkupPercentage() != null && !user.getMarkupPercentage().equals(userFromDB.getMarkupPercentage())) {
-            userFromDB.setMarkupPercentage(user.getMarkupPercentage());
-            log.info("User's markup percentage param with id {} has been updated -> {}",
-                    id, authService.getAuthInfo().getPrincipal());
-        }
-
-        if (user.getLocalization() != null) {
-            userFromDB.setLocalization(user.getLocalization());
-        }
-
-        Profile profile = user.getProfile();
-        Profile profileFromDb = userFromDB.getProfile();
-
-        if (profile != null) {
             if (profile.getSurname() != null) {
-                if (StringUtils.isBlank(profile.getSurname())) {
-                    profileFromDb.setSurname(null);
-                } else {
-                    profileFromDb.setSurname(profile.getSurname());
-                }
-                log.info("The surname of User with the id {} has been updated -> {}",
-                        id, authService.getAuthInfo().getPrincipal());
+                String clean = StringUtils.isBlank(profile.getSurname()) ? null : profile.getSurname();
+                updated |= updateField(clean, profileFromDb.getSurname(), profileFromDb::setSurname, "surname", id);
             }
-
             if (profile.getName() != null) {
-                if (StringUtils.isBlank(profile.getName())) {
-                    profileFromDb.setName(null);
-                } else {
-                    profileFromDb.setName(profile.getName());
-                }
-                log.info("The name of User with the id {} has been updated -> {}",
-                        id, authService.getAuthInfo().getPrincipal());
+                String clean = StringUtils.isBlank(profile.getName()) ? null : profile.getName();
+                updated |= updateField(clean, profileFromDb.getName(), profileFromDb::setName, "name", id);
             }
-
             if (profile.getPatronymic() != null) {
-                if (StringUtils.isBlank(profile.getPatronymic())) {
-                    profileFromDb.setPatronymic(null);
-                } else {
-                    profileFromDb.setPatronymic(profile.getPatronymic());
-                }
-                log.info("The patronymic of User with the id {} has been updated -> {}",
-                        id, authService.getAuthInfo().getPrincipal());
+                String clean = StringUtils.isBlank(profile.getPatronymic()) ? null : profile.getPatronymic();
+                updated |= updateField(clean, profileFromDb.getPatronymic(), profileFromDb::setPatronymic, "patronymic", id);
             }
         }
 
-        iUserRepository.save(userFromDB);
-        response.put("update_user", "true");
+        if (updated) {
+            iUserRepository.save(userFromDB);
+        }
 
+        response.put("update_user", "true");
         return ResponseEntity.ok(response);
     }
+
+
 
     /**
      * Searches for users by login, email, or phone number containing the given text with pagination.
@@ -377,6 +347,47 @@ public class UserService {
     }
 
     /**
+     * Checks if the provided login, email, and phone number are already in use by another user.
+     * 
+     * @param login the login to check for uniqueness
+     * @param email the email to check for uniqueness
+     * @param phone the phone number to check for uniqueness
+     * @param id the UUID of the user being updated (null if creating a new user) to ignore self-matches
+     * @param response Map to collect validation error messages
+     * @return true if any of the provided data is not unique, false otherwise
+     */
+    private boolean checkUniqueData(String login, String email, String phone, UUID id, Map<String, String> response) {
+        if (login != null) {
+            Optional<User> existing = iUserRepository.findByLogin(login);
+            if (existing.isPresent() && (id == null || !existing.get().getId().equals(id))) {
+                response.put("error_login", "User with that login already exists");
+                log.warn("User with login '{}' already exists", login);
+                return true;
+            }
+        }
+
+        if (email != null) {
+            Optional<User> existing = iUserRepository.findByEmail(email);
+            if (existing.isPresent() && (id == null || !existing.get().getId().equals(id))) {
+                response.put("error_email", "User with that email already exists");
+                log.warn("User with email '{}' already exists", email);
+                return true;
+            }
+        }
+
+        if (phone != null) {
+            Optional<User> existing = iUserRepository.findByPhoneNumber(phone);
+            if (existing.isPresent() && (id == null || !existing.get().getId().equals(id))) {
+                response.put("error_phone_number", "User with that phone number already exists");
+                log.warn("User with phone number '{}' already exists", phone);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Validates a uniqueness of new user data.
      *
      * @param user the User object to validate
@@ -384,37 +395,26 @@ public class UserService {
      * @return true if user data is unique, false otherwise
      */
     private boolean hasNotUniqueData(User user, Map<String, String> response) {
-        if (user.getLogin() != null) {
-            Optional<User> userFoundByLoginOptional = iUserRepository.findByLogin(user.getLogin());
+        return checkUniqueData(user.getLogin(), user.getEmail(), user.getPhoneNumber(), user.getId(), response);
+    }
 
-            if (userFoundByLoginOptional.isPresent() && !userFoundByLoginOptional.get().getId().equals(user.getId())) {
-                response.put("error_login", "User with that login already exists");
-                log.warn("User with login '{}' already exists", user.getLogin());
-                return true;
-            }
+    /**
+     * Helper method to update a single entity field if its value has changed.
+     *
+     * @param newValue the new value to potentially set
+     * @param oldValue the current value of the field
+     * @param setter the consumer to execute the update (e.g., a method reference to a setter)
+     * @param fieldName the name of the field being updated (used for logging)
+     * @param id the UUID of the user whose field is being updated
+     * @param <T> the type of the field
+     * @return true if the field was updated, false otherwise
+     */
+    private <T> boolean updateField(T newValue, T oldValue, java.util.function.Consumer<T> setter, String fieldName, UUID id) {
+        if (!java.util.Objects.equals(newValue, oldValue)) {
+            setter.accept(newValue);
+            log.info("The {} of User with the id {} has been updated -> {}", fieldName, id, authService.getAuthInfo().getPrincipal());
+            return true;
         }
-
-        if (user.getEmail() != null) {
-            Optional<User> userFoundByEmailOptional = iUserRepository.findByEmail(user.getEmail());
-
-            if (userFoundByEmailOptional.isPresent() && !userFoundByEmailOptional.get().getId().equals(user.getId())) {
-                response.put("error_email", "User with that email already exists");
-                log.warn("User with email '{}' already exists", user.getEmail());
-                return true;
-            }
-        }
-
-        if (user.getPhoneNumber() != null) {
-            Optional<User> userFoundByPhoneNumberOptional = iUserRepository.findByPhoneNumber(user.getPhoneNumber());
-
-            if (userFoundByPhoneNumberOptional.isPresent() && !userFoundByPhoneNumberOptional.get().getId()
-                    .equals(user.getId())) {
-                response.put("error_phone_number", "User with that phone number already exists");
-                log.warn("User with phone number '{}' already exists", user.getPhoneNumber());
-                return true;
-            }
-        }
-
         return false;
     }
 

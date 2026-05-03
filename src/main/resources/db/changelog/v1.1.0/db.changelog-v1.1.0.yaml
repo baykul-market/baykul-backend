@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4
+      author: antigravity
+      comment: "Update users and price_config for dynamic rounding and fallback markup"
+      changes:
+        - sqlFile:
+            path: classpath:db/changelog/v1.1.0/sql/01-update-schema-for-pricing.sql
+            splitStatements: true
+            stripComments: true
