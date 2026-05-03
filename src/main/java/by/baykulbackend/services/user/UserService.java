@@ -79,10 +79,6 @@ public class UserService {
             user.setCanPayLater(false);
         }
 
-        if (user.getMarkupPercentage() == null) {
-            user.setMarkupPercentage(priceService.getMarkupPercentage());
-        }
-
         if (user.getLocalization() == null) {
             user.setLocalization(Localization.RUS);
         }

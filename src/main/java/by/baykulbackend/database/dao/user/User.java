@@ -150,7 +150,7 @@ public class User {
             defaultValue = "0.10",
             minimum = "0"
     )
-    @Column(name = "markup_percentage", nullable = false)
+    @Column(name = "markup_percentage", nullable = true)
     @JsonView({Views.UserAdminView.class, Views.UserView.Post.class, Views.UserView.Patch.class})
     private BigDecimal markupPercentage;
 

@@ -318,7 +318,9 @@ public class PriceService {
                 getSystemCurrency()
         );
 
-        BigDecimal userMarkupPercentage = user != null ? user.getMarkupPercentage() : getMarkupPercentage();
+        BigDecimal userMarkupPercentage = (user != null && user.getMarkupPercentage() != null)
+                ? user.getMarkupPercentage()
+                : getMarkupPercentage();
 
         BigDecimal finalPrice = basePrice;
 
