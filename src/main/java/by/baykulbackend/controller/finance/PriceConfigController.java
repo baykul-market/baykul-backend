@@ -22,21 +22,30 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/price-config")
 @RequiredArgsConstructor
-@Tag(name = "Price Configuration", description = "API for managing global price configuration settings")
+@Tag(name = "Price Configuration", description = "API for managing global price configuration settings and per-user delivery rate overrides")
 public class PriceConfigController {
     private final PriceService priceService;
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Global configuration endpoints
+    // ──────────────────────────────────────────────────────────────────────────
+
     @Operation(
-            summary = "Get all configurations",
-            description = "Retrieves markup percentage, system currency and delivery cost rules. Requires pricing:read permission.",
+            summary = "Get all global configurations",
+            description = "Retrieves markup percentage, system currency and global delivery cost rules. " +
+                    "Only global (non-user-specific) delivery rules are returned here. " +
+                    "Use GET /delivery-rule/user/{userId} for per-user rules. " +
+                    "Requires pricing:read permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -56,7 +65,8 @@ public class PriceConfigController {
                                                   "id": "123e4567-e89b-12d3-a456-426614174001",
                                                   "minimumSum": 0,
                                                   "markupType": "PERCENTAGE",
-                                                  "value": 0.10
+                                                  "value": 0.10,
+                                                  "userId": null
                                                 }
                                               ]
                                             }
@@ -137,10 +147,16 @@ public class PriceConfigController {
         return priceService.updateBaseConfig(configDto);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Delivery rule CRUD (global + per-user)
+    // ──────────────────────────────────────────────────────────────────────────
+
     @Operation(
             summary = "Create delivery cost rule",
             description = "Creates a new delivery cost rule. " +
-                    "For SUM type, currency is required. Requires pricing:write permission.",
+                    "If userId is provided in the body, the rule is a personal override for that user. " +
+                    "If userId is null/omitted, the rule is a global default. " +
+                    "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Delivery cost rule data",
@@ -150,13 +166,25 @@ public class PriceConfigController {
                             schema = @Schema(implementation = DeliveryCostConfigDto.class),
                             examples = {
                                     @ExampleObject(
-                                            name = "Percentage type rule",
-                                            summary = "Create percentage-based rule",
+                                            name = "Global percentage rule",
+                                            summary = "Create global percentage-based rule",
                                             value = """
                                                     {
                                                       "minimumSum": 0,
                                                       "markupType": "PERCENTAGE",
                                                       "value": 0.10
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "User-specific fixed sum rule",
+                                            summary = "Create a personal delivery rule for a specific user",
+                                            value = """
+                                                    {
+                                                      "minimumSum": 0,
+                                                      "markupType": "SUM",
+                                                      "value": 5.00,
+                                                      "userId": "123e4567-e89b-12d3-a456-426614174000"
                                                     }
                                                     """
                                     )
@@ -173,7 +201,7 @@ public class PriceConfigController {
                             examples = @ExampleObject(
                                     value = """
                                             {
-                                              "create_delivery_rule": "true",
+                                              "save_delivery_rule": "true",
                                               "id": "123e4567-e89b-12d3-a456-426614174003"
                                             }
                                             """
@@ -206,7 +234,8 @@ public class PriceConfigController {
                     )
             ),
             @ApiResponse(responseCode = "401", description = "Unauthorized"),
-            @ApiResponse(responseCode = "403", description = "Forbidden")
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(responseCode = "404", description = "User not found (when userId is provided)")
     })
     @PreAuthorize("hasAnyAuthority('pricing:write')")
     @PostMapping("/delivery-rule")
@@ -217,7 +246,8 @@ public class PriceConfigController {
     @Operation(
             summary = "Update delivery cost rule",
             description = "Updates an existing delivery cost rule by ID. " +
-                    "For SUM type, currency is required. Requires pricing:write permission.",
+                    "The user association of a rule cannot be changed via this endpoint. " +
+                    "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Delivery cost rule data to update",
@@ -251,7 +281,7 @@ public class PriceConfigController {
                             examples = @ExampleObject(
                                     value = """
                                             {
-                                              "update_delivery_rule": "true",
+                                              "save_delivery_rule": "true",
                                               "id": "123e4567-e89b-12d3-a456-426614174001"
                                             }
                                             """
@@ -297,7 +327,8 @@ public class PriceConfigController {
 
     @Operation(
             summary = "Delete delivery cost rule",
-            description = "Deletes a delivery cost rule by ID. Requires pricing:write permission.",
+            description = "Deletes a delivery cost rule by ID (works for both global and user-specific rules). " +
+                    "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )
     @ApiResponses(value = {
@@ -340,9 +371,70 @@ public class PriceConfigController {
         return priceService.deleteDeliveryCostRule(id);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Per-user delivery rule management
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Operation(
+            summary = "Get delivery cost rules for a specific user",
+            description = "Returns all personal delivery rate overrides assigned to the given user. " +
+                    "These rules take precedence over global rules when calculating delivery cost for this user. " +
+                    "Requires pricing:read permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "User delivery rules retrieved successfully",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    value = """
+                                            [
+                                              {
+                                                "id": "aabbccdd-e89b-12d3-a456-426614174002",
+                                                "minimumSum": 0,
+                                                "markupType": "SUM",
+                                                "value": 3.50,
+                                                "userId": "123e4567-e89b-12d3-a456-426614174000"
+                                              }
+                                            ]
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden"),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "User not found",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    value = """
+                                            {
+                                              "error": "User not found: 123e4567-e89b-12d3-a456-426614174000"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    @PreAuthorize("hasAnyAuthority('pricing:read')")
+    @GetMapping("/delivery-rule/user/{userId}")
+    public List<DeliveryCostConfigDto> getDeliveryRulesForUser(
+            @Parameter(description = "UUID of the user", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @PathVariable UUID userId) {
+        return priceService.getDeliveryRulesForUser(userId);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Reset
+    // ──────────────────────────────────────────────────────────────────────────
+
     @Operation(
             summary = "Reset all configurations to default",
-            description = "Resets markup percentage, currency and delivery rules to default values. " +
+            description = "Resets markup percentage, currency and ALL delivery rules (global + user-specific) to default values. " +
                     "Requires pricing:write permission.",
             security = @SecurityRequirement(name = "bearerAuth")
     )

@@ -1,0 +1,184 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# cut-release.yml
+#
+# PURPOSE
+#   Manually cut a release branch from any source branch (selected via the
+#   GitHub UI branch picker), bump the project version natively in Gradle,
+#   and open a Pull Request against main.
+#
+# INPUTS
+#   version  – Target SemVer (e.g. "1.0.0" or "v1.0.0"). The leading "v" is
+#              stripped automatically so it is always normalised.
+#
+# SOURCE BRANCH
+#   Controlled by the "Use workflow from" branch picker in the GitHub UI.
+#   github.ref_name resolves to whatever branch the user selected there.
+#   No custom text input is needed.
+#
+# REQUIRED SECRETS
+#   RELEASE_PAT – A Fine-Grained PAT (or classic PAT) with:
+#                   • Contents: Read & Write  (to push the release branch)
+#                   • Pull Requests: Read & Write  (to open the PR)
+#                 Using a PAT (instead of GITHUB_TOKEN) is critical so that the
+#                 pushed commits trigger other workflows (e.g. verify-pr.yml).
+# ─────────────────────────────────────────────────────────────────────────────
+name: ✂️ Cut Release Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Target release version (e.g. 1.0.0 or v1.0.0)'
+        required: true
+        type: string
+
+# Only one release cut may run at a time to prevent race conditions.
+concurrency:
+  group: cut-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  cut-release:
+    name: Cut release branch & open PR
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Validate version input ────────────────────────────────────────────
+      - name: Validate version format
+        id: version
+        run: |
+          RAW="${{ github.event.inputs.version }}"
+          # Strip optional leading 'v'
+          CLEAN="${RAW#v}"
+
+          # Enforce strict SemVer: MAJOR.MINOR.PATCH (optional pre-release)
+          if ! echo "$CLEAN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9._-]+)?$'; then
+            echo "::error::Invalid version '$RAW'. Must be SemVer e.g. 1.2.3 or 1.2.3-rc.1"
+            exit 1
+          fi
+
+          RELEASE_BRANCH="release/v${CLEAN}"
+          echo "clean=${CLEAN}"           >> "$GITHUB_OUTPUT"
+          echo "tag=v${CLEAN}"           >> "$GITHUB_OUTPUT"
+          echo "branch=${RELEASE_BRANCH}" >> "$GITHUB_OUTPUT"
+
+          echo "### 🔖 Release parameters" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Key | Value |"          >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | ----- |"          >> "$GITHUB_STEP_SUMMARY"
+          echo "| Source branch | \`${{ github.ref_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Release branch | \`${RELEASE_BRANCH}\` |"     >> "$GITHUB_STEP_SUMMARY"
+          echo "| Version | \`${CLEAN}\` |"                      >> "$GITHUB_STEP_SUMMARY"
+
+      # ── 2. Check out source branch (the one chosen in the UI branch picker) ──
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}       # resolves to the UI-selected branch
+          fetch-depth: 0               # full history so we can push a new branch
+          token: ${{ secrets.RELEASE_PAT }}
+
+      # ── 3. Configure Git identity ────────────────────────────────────────────
+      - name: Configure Git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ── 4. Guard: ensure release branch does not already exist ───────────────
+      - name: Check for existing release branch
+        run: |
+          BRANCH="${{ steps.version.outputs.branch }}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1; then
+            echo "::error::Branch '$BRANCH' already exists on remote. Aborting."
+            exit 1
+          fi
+
+      # ── 5. Set up JDK (needed by Gradle wrapper) ─────────────────────────────
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      # ── 6. Bump version natively via Gradle ───────────────────────────────────
+      #   The `-Pversion` flag overrides the version property in build.gradle at
+      #   configuration time. We then capture what Gradle resolved to verify it.
+      - name: Bump version in build.gradle
+        id: bump
+        run: |
+          NEW_VER="${{ steps.version.outputs.clean }}"
+          chmod +x gradlew
+
+          # Rewrite `version = '...'` in build.gradle in-place
+          # This is the single source of truth for Gradle projects that do NOT
+          # use gradle.properties for the version field.
+          sed -i "s/^version\s*=\s*['\"][^'\"]*['\"]/version = '${NEW_VER}'/" build.gradle
+
+          # Sanity-check: let Gradle itself print the resolved version
+          RESOLVED=$(./gradlew properties -q --no-daemon | grep "^version:" | awk '{print $2}')
+          echo "Gradle resolved version: ${RESOLVED}"
+
+          if [ "${RESOLVED}" != "${NEW_VER}" ]; then
+            echo "::error::Version mismatch — build.gradle shows '${RESOLVED}' but expected '${NEW_VER}'"
+            exit 1
+          fi
+
+          echo "resolved=${RESOLVED}" >> "$GITHUB_OUTPUT"
+
+      # ── 7. Create release branch, commit, and push ───────────────────────────
+      - name: Create and push release branch
+        run: |
+          BRANCH="${{ steps.version.outputs.branch }}"
+          git checkout -b "$BRANCH"
+          git add build.gradle
+          git commit -m "chore(release): bump version to ${{ steps.version.outputs.tag }}"
+          git push origin "$BRANCH"
+
+      # ── 8. Open Pull Request against main ────────────────────────────────────
+      - name: Open Pull Request
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          VER="${{ steps.version.outputs.clean }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          SOURCE="${{ github.ref_name }}"
+          BRANCH="${{ steps.version.outputs.branch }}"
+
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Release ${TAG}" \
+            --label "release" \
+            --body "$(cat <<EOF
+          ## 🚀 Release ${TAG}
+
+          This PR was auto-generated by the **Cut Release Branch** workflow.
+
+          | Field | Value |
+          | ----- | ----- |
+          | Version | \`${VER}\` |
+          | Source branch | \`${SOURCE}\` |
+          | Release branch | \`${BRANCH}\` |
+          | Triggered by | @${{ github.actor }} |
+
+          ### What happens when this PR is merged into \`main\`?
+
+          1. **🐳 Deploy** — \`deploy.yml\` will build a new Docker image, push it to GHCR, and deploy it to the production server via SSH.
+          2. **📦 Publish Release** — \`publish-release.yml\` will create a GitHub Release tagged \`${TAG}\`, generate release notes from merged PRs, and attach the compiled JAR.
+
+          ### Checklist before merging
+          - [ ] All CI checks pass on this PR
+          - [ ] QA sign-off on \`${SOURCE}\`
+          - [ ] Release notes reviewed
+          EOF
+          )")
+
+          echo "pr_url=${PR_URL}" >> "$GITHUB_OUTPUT"
+          echo "✅ Pull Request opened: ${PR_URL}" >> "$GITHUB_STEP_SUMMARY"
+          echo "pr_url=${PR_URL}"
+

@@ -1,5 +1,6 @@
 package by.baykulbackend.database.dao.finance;
 
+import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.security.Views;
 import com.fasterxml.jackson.annotation.JsonIdentityInfo;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -13,6 +14,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.FetchType;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -89,4 +93,18 @@ public class DeliveryCostConfig {
     @Column(name = "value")
     @JsonView({Views.ConfigView.Get.class, Views.ConfigView.Post.class, Views.ConfigView.Patch.class})
     private BigDecimal value;
+
+    /**
+     * Optional owner of this delivery rate rule.
+     * When null — this is a global rule applied as a fallback for all users.
+     * When set — this rule overrides global rules for the specified user.
+     */
+    @Schema(
+            description = "Owner user of this delivery rate rule. Null means a global (default) rule.",
+            accessMode = Schema.AccessMode.READ_ONLY
+    )
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = true)
+    @JsonView(Views.UserAdminView.class)
+    private User user;
 }

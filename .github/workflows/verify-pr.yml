@@ -1,18 +1,39 @@
-name: PR Verification
+# ─────────────────────────────────────────────────────────────────────────────
+# verify-pr.yml
+#
+# PURPOSE
+#   Run fast build + test + checkstyle on every PR and push to main/dev.
+#   Docker image validity is verified only on PRs targeting main (release PRs),
+#   not on every feature PR, to keep CI fast.
+#
+# JOBS
+#   build-test   – Compile, run tests, and check code style (always)
+#   docker-lint  – Verify Docker build compiles (release PRs to main only)
+# ─────────────────────────────────────────────────────────────────────────────
+name: ✅ PR Verification
 
 on:
   pull_request:
-    branches:
-      - '**'
+    branches: ['**']
+  push:
+    branches: [main, dev]
 
+# One run per PR at a time; latest push wins.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: verify-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  checks: write        # needed to annotate test results
+  pull-requests: read
+
 jobs:
-  verify:
-    name: Build, Test and Check Quality
+  # ── Job 1: Build, test, checkstyle ──────────────────────────────────────────
+  build-test:
+    name: Build, Test & Lint
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,24 +45,55 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Build with Gradle
+      - name: Build and test
         run: |
           chmod +x gradlew
-          ./gradlew build check
+          ./gradlew build check --no-daemon
+
+      - name: Write summary
+        if: always()
+        run: |
+          echo "## ✅ Build & Test" >> "$GITHUB_STEP_SUMMARY"
+          echo "Branch: \`${{ github.head_ref || github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Job 2: Docker build smoke-test (only for PRs targeting main) ─────────────
+  docker-lint:
+    name: Docker Build Smoke-test
+    runs-on: ubuntu-latest
+    # Only validate Docker on PRs against main (i.e. release PRs).
+    # Skip on direct pushes and on PRs against other branches.
+    if: |
+      github.event_name == 'pull_request' &&
+      github.base_ref == 'main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Build JAR for Docker context
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build -x test --no-daemon
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Verify Docker build
-        uses: docker/build-push-action@v5
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
-          tags: baykul-backend:test
+          tags: baykul-backend:pr-${{ github.event.pull_request.number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Cleanup
+      - name: Cleanup test image
         if: always()
-        run: |
-          docker image rm baykul-backend:test || true
+        run: docker image rm "baykul-backend:pr-${{ github.event.pull_request.number }}" 2>/dev/null || true

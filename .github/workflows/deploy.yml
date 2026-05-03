@@ -1,12 +1,36 @@
-name: Deploy to beget.com server
+# ─────────────────────────────────────────────────────────────────────────────
+# deploy.yml
+#
+# PURPOSE
+#   On every push to main (including merged PRs), build and publish a Docker
+#   image to GHCR, then deploy it to the production server via SSH.
+#
+# REQUIRED SECRETS
+#   HOST_PROD          – Production server hostname / IP
+#   USERNAME           – SSH login username
+#   SSH_KEY            – Private SSH key (PEM format)
+#   POSTGRES_USER      – PostgreSQL username
+#   DB_PASSWORD        – PostgreSQL password
+#   JWT_ACCESS_SECRET  – JWT access token signing secret
+#   JWT_REFRESH_SECRET – JWT refresh token signing secret
+#   SECURITY_USER_PASSWORD – Spring Security actuator user password
+#   SMTP_HOST          – Mail server hostname
+#   SMTP_PORT          – Mail server port
+#   EMAIL              – Sender e-mail address
+#   EMAIL_PASSWORD     – Sender e-mail password
+#
+# REQUIRED VARS (repository-level, not secrets)
+#   BACKEND_PORT       – Host port to expose (defaults to 8080 if unset)
+# ─────────────────────────────────────────────────────────────────────────────
+name: 🚀 Deploy to Production
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
+# Prevent concurrent deploys; let the latest push win.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: deploy-production
   cancel-in-progress: true
 
 env:
@@ -18,8 +42,14 @@ permissions:
   packages: write
 
 jobs:
+  # ── Job 1: Build application & publish Docker image ─────────────────────────
   build-and-push:
+    name: Build & push Docker image
     runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,9 +64,9 @@ jobs:
       - name: Build with Gradle
         run: |
           chmod +x gradlew
-          ./gradlew clean build
+          ./gradlew clean build -x test --no-daemon
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -46,7 +76,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata for Docker
+      - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -55,8 +85,8 @@ jobs:
             type=sha,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+      - name: Build and push image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -65,63 +95,94 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # ── Job 2: Deploy to production server via SSH ───────────────────────────────
   deploy:
+    name: Deploy to server
     needs: build-and-push
     runs-on: ubuntu-latest
+
     env:
-      TARGET_HOST: ${{ secrets.HOST_PROD }}
       CONTAINER_NAME: baykul-backend-prod
       BACKEND_PORT: ${{ vars.BACKEND_PORT || '8080' }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
-      - name: Get Short SHA
-        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+      - name: Compute full image name
+        id: image
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          # GHCR image names must be lowercase
+          FULL=$(echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${SHORT_SHA}" | tr '[:upper:]' '[:lower:]')
+          echo "name=${FULL}" >> "$GITHUB_OUTPUT"
+          echo "Image: ${FULL}"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ env.TARGET_HOST }}
+          host: ${{ secrets.HOST_PROD }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
-          envs: REGISTRY,IMAGE_NAME,SHORT_SHA,CONTAINER_NAME,BACKEND_PORT,GITHUB_TOKEN
+          # Pass only what the remote script strictly needs; never pass raw tokens.
+          envs: >-
+            CONTAINER_NAME,
+            BACKEND_PORT
           script: |
-            set -e
-            echo "$GITHUB_TOKEN" | docker login $REGISTRY -u ${{ github.actor }} --password-stdin
-            FULL_IMAGE_NAME=$(echo "$REGISTRY/$IMAGE_NAME:sha-$SHORT_SHA" | tr '[:upper:]' '[:lower:]')
-            echo "Pulling image: $FULL_IMAGE_NAME"
-            docker pull $FULL_IMAGE_NAME
-            docker stop $CONTAINER_NAME || true
-            docker rm $CONTAINER_NAME || true
-            
+            set -euo pipefail
+
+            REGISTRY="ghcr.io"
+            IMAGE="${{ steps.image.outputs.name }}"
+
+            echo "🔐 Logging in to GHCR..."
+            echo "${{ secrets.GITHUB_TOKEN }}" | \
+              docker login "$REGISTRY" -u "${{ github.actor }}" --password-stdin
+
+            echo "📥 Pulling image: $IMAGE"
+            docker pull "$IMAGE"
+
+            echo "🛑 Stopping old container (if running)..."
+            docker stop "$CONTAINER_NAME" 2>/dev/null || true
+            docker rm   "$CONTAINER_NAME" 2>/dev/null || true
+
+            echo "▶️ Starting new container..."
             docker run -d \
-              --name $CONTAINER_NAME \
+              --name "$CONTAINER_NAME" \
               --network baykul-network \
-              -p $BACKEND_PORT:8080 \
+              -p "${BACKEND_PORT}:8080" \
               --restart always \
               -e SPRING_PROFILES_ACTIVE=prod \
-              -e DATABASE_URL=jdbc:postgresql://baykul-postgres:5432/baykul \
-              -e DATABASE_USER=${{ secrets.POSTGRES_USER }} \
-              -e DATABASE_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              -e JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} \
-              -e JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} \
-              -e SECURITY_USER_PASSWORD=${{ secrets.SECURITY_USER_PASSWORD }} \
-              -e SMTP_HOST=${{ secrets.SMTP_HOST }} \
-              -e SMTP_PORT=${{ secrets.SMTP_PORT }} \
-              -e EMAIL=${{ secrets.EMAIL }} \
-              -e EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }} \
+              -e DATABASE_URL="jdbc:postgresql://baykul-postgres:5432/baykul" \
+              -e DATABASE_USER="${{ secrets.POSTGRES_USER }}" \
+              -e DATABASE_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+              -e JWT_ACCESS_SECRET="${{ secrets.JWT_ACCESS_SECRET }}" \
+              -e JWT_REFRESH_SECRET="${{ secrets.JWT_REFRESH_SECRET }}" \
+              -e SECURITY_USER_PASSWORD="${{ secrets.SECURITY_USER_PASSWORD }}" \
+              -e SMTP_HOST="${{ secrets.SMTP_HOST }}" \
+              -e SMTP_PORT="${{ secrets.SMTP_PORT }}" \
+              -e EMAIL="${{ secrets.EMAIL }}" \
+              -e EMAIL_PASSWORD="${{ secrets.EMAIL_PASSWORD }}" \
               -v /root/baykul-backend-prod/logs:/app/logs \
               -v /root/baykul-backend-prod/uploads:/app/uploads \
-              -v /root/baykul-backend-prod/uploads:/app/uploads/tmp \
-              $FULL_IMAGE_NAME
+              "$IMAGE"
 
-            docker image prune -af --filter "until=24h" || true
-
-            sleep 5
-            if docker ps | grep -q $CONTAINER_NAME; then
-              echo "✅ Container $CONTAINER_NAME started successfully"
-              echo "📝 Logs: docker logs $CONTAINER_NAME"
+            # Brief warm-up window then verify
+            sleep 8
+            if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+              echo "✅ Container ${CONTAINER_NAME} is running"
             else
-              echo "❌ Container failed to start"
-              docker logs $CONTAINER_NAME
+              echo "❌ Container failed to start — dumping logs"
+              docker logs "$CONTAINER_NAME" --tail 50
               exit 1
             fi
+
+            echo "🧹 Pruning dangling images older than 24 h..."
+            docker image prune -af --filter "until=24h" || true
+
+      # ── Annotate workflow summary ────────────────────────────────────────────
+      - name: Write summary
+        if: always()
+        run: |
+          echo "## 🚀 Deployment summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |"        >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |"            >> "$GITHUB_STEP_SUMMARY"
+          echo "| Image | \`${{ steps.image.outputs.name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${{ github.sha }}\` |"              >> "$GITHUB_STEP_SUMMARY"
+          echo "| Actor | @${{ github.actor }} |"                >> "$GITHUB_STEP_SUMMARY"

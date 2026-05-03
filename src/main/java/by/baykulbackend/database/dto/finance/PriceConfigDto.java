@@ -25,6 +25,24 @@ public class PriceConfigDto {
     private Currency systemCurrency;
 
     @Schema(
+            description = "Currency for which delivery rules are calculated",
+            example = "EUR"
+    )
+    private Currency deliveryCurrency;
+
+    @Schema(
+            description = "Scale for rounding prices (e.g. 2 for pennies, 0 for units, -2 for hundreds)",
+            example = "-2"
+    )
+    private Integer roundingScale;
+
+    @Schema(
+            description = "Mathematical rounding mode",
+            example = "CEILING"
+    )
+    private java.math.RoundingMode roundingMode;
+
+    @Schema(
             description = "Delivery cost configuration rules"
     )
     private List<DeliveryCostConfigDto> deliveryCostConfigs;
