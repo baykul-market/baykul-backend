@@ -1,0 +1,95 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# publish-release.yml
+#
+# PURPOSE
+#   When a release/* branch is merged into main, build the production JAR,
+#   create a GitHub Release (with auto-generated notes), and attach the JAR.
+#
+# TRIGGER
+#   pull_request: closed  +  head.ref starts with 'release/v'  +  merged == true
+#
+# PERMISSIONS
+#   contents: write  – to create tags and releases
+# ─────────────────────────────────────────────────────────────────────────────
+name: 📦 Publish Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build JAR & create GitHub Release
+    # Only run when a release/* PR was actually merged (not just closed)
+    if: |
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout the merge commit on main ─────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}   # explicit merge commit SHA — always stable
+
+      # ── 2. Extract version from release branch name ───────────────────────────
+      - name: Extract version
+        id: version
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"   # e.g. release/v1.2.3
+          VERSION="${BRANCH#release/v}"                          # → 1.2.3
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}"         >> "$GITHUB_OUTPUT"
+
+      # ── 3. Set up JDK ────────────────────────────────────────────────────────
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      # ── 4. Build production JAR ───────────────────────────────────────────────
+      - name: Build release JAR
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build -x test --no-daemon
+
+      # ── 5. Locate the executable JAR (exclude *-plain.jar) ────────────────────
+      - name: Locate JAR artifact
+        id: jar
+        run: |
+          JAR_PATH=$(find build/libs -name "*.jar" ! -name "*-plain.jar" | sort | head -n 1)
+          if [ -z "$JAR_PATH" ]; then
+            echo "::error::No executable JAR found in build/libs"
+            exit 1
+          fi
+          echo "path=${JAR_PATH}" >> "$GITHUB_OUTPUT"
+          echo "JAR: ${JAR_PATH}"
+
+      # ── 6. Create GitHub Release and upload JAR ───────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          make_latest: true
+          files: ${{ steps.jar.outputs.path }}
+
+      # ── 7. Annotate workflow summary ─────────────────────────────────────────
+      - name: Write summary
+        run: |
+          echo "## 📦 Release ${{ steps.version.outputs.tag }} published" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |"    >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tag | \`${{ steps.version.outputs.tag }}\` |"      >> "$GITHUB_STEP_SUMMARY"
+          echo "| JAR | \`${{ steps.jar.outputs.path }}\` |"         >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${{ github.sha }}\` |"                  >> "$GITHUB_STEP_SUMMARY"
