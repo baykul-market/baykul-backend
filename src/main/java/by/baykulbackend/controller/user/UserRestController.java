@@ -1,6 +1,7 @@
 package by.baykulbackend.controller.user;
 
 import by.baykulbackend.database.dao.user.User;
+import by.baykulbackend.database.dto.user.UserPatchRequest;
 import by.baykulbackend.database.dto.security.Views;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
@@ -588,8 +589,8 @@ public class UserRestController {
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
             @RequestParam UUID id,
-            @RequestBody @JsonView(Views.UserView.Patch.class) User user) {
-        return userService.updateUserById(id, user);
+            @RequestBody UserPatchRequest patch) {
+        return userService.updateUserById(id, patch);
     }
 
     @Operation(

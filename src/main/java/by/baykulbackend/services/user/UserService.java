@@ -11,6 +11,7 @@ import by.baykulbackend.database.repository.order.IOrderRepository;
 import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.database.dto.user.UserPatchRequest;
 import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.utils.Validator;
 import by.baykulbackend.services.email.EmailService;
@@ -181,7 +182,7 @@ public class UserService {
     }
 
     /**
-     * Updates an existing user's information.
+     * Updates an existing user's information (entity-based, used by profile update path).
      * Only updates non-null fields from the provided user object.
      *
      * @param id   the UUID of the user to update
@@ -193,6 +194,56 @@ public class UserService {
         User userFromDB = iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
 
         return updateUser(userFromDB, user);
+    }
+
+    /**
+     * Updates an existing user's information from a dedicated patch DTO.
+     *
+     * <p>This overload is the <em>robust</em> path for admin PATCH requests because
+     * {@link UserPatchRequest#getMarkupPercentage()} carries three distinct states:
+     * <ul>
+     *   <li>{@code null} – field was absent in JSON → do not touch the stored value.</li>
+     *   <li>{@code Optional.empty()} – field was JSON {@code null} → clear to {@code null}
+     *       so the global pricing fallback is used.</li>
+     *   <li>{@code Optional.of(v)} – set to {@code v}.</li>
+     * </ul>
+     *
+     * @param id    the UUID of the user to update
+     * @param patch the patch DTO
+     * @return ResponseEntity with success/error message
+     * @throws NotFoundException if no user is found with the given ID
+     */
+    public ResponseEntity<?> updateUserById(UUID id, UserPatchRequest patch) {
+        User userFromDB = iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
+
+        // Build a shadow User from the patch DTO. markupPercentage is intentionally left null
+        // so the existing updateUser() logic skips it — we handle it below with Optional semantics.
+        User shadowUser = new User();
+        shadowUser.setLogin(patch.getLogin());
+        shadowUser.setPassword(patch.getPassword());
+        shadowUser.setEmail(patch.getEmail());
+        shadowUser.setPhoneNumber(patch.getPhoneNumber());
+        shadowUser.setRole(patch.getRole());
+        shadowUser.setBlocked(patch.getBlocked());
+        shadowUser.setCanPayLater(patch.getCanPayLater());
+        shadowUser.setLocalization(patch.getLocalization());
+        shadowUser.setProfile(patch.getProfile());
+        // markupPercentage NOT set → stays null → updateUser() will skip it
+
+        ResponseEntity<?> response = updateUser(userFromDB, shadowUser);
+
+        // Handle markupPercentage with full Optional semantics (only when request succeeded)
+        if (response.getStatusCode().is2xxSuccessful() && patch.getMarkupPercentage() != null) {
+            BigDecimal newMarkup = patch.getMarkupPercentage().orElse(null);
+            if (!java.util.Objects.equals(newMarkup, userFromDB.getMarkupPercentage())) {
+                userFromDB.setMarkupPercentage(newMarkup);
+                iUserRepository.save(userFromDB);
+                log.info("User's markup percentage param with id {} has been updated -> {}",
+                        id, authService.getAuthInfo().getPrincipal());
+            }
+        }
+
+        return response;
     }
 
     /**
