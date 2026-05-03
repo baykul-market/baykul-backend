@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -589,7 +590,7 @@ public class UserRestController {
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
             @RequestParam UUID id,
-            @RequestBody UserPatchRequest patch) {
+            @Valid @RequestBody UserPatchRequest patch) {
         return userService.updateUserById(id, patch);
     }
 

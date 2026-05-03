@@ -5,6 +5,10 @@ import by.baykulbackend.database.dao.user.Profile;
 import by.baykulbackend.database.model.Role;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -29,15 +33,20 @@ import java.util.Optional;
 public class UserPatchRequest {
 
     @Schema(description = "Login name (3–50 chars)", example = "john_doe")
+    @Size(min = 3, max = 50, message = "The login must be between 3 and 50 characters")
+    @Pattern(regexp = "^(?!\\s*$).+", message = "Login must not be empty")
     private String login;
 
     @Schema(description = "New plain-text password (8–100 chars)", example = "newSecurePass123")
+    @Size(min = 8, max = 100, message = "The password must be between 8 and 100 characters")
+    @Pattern(regexp = "^(?!\\s*$).+", message = "The password must not be empty")
     private String password;
 
     @Schema(description = "Email address", example = "john@example.com")
     private String email;
 
     @Schema(description = "Phone number", example = "+375291234567")
+    @Pattern(regexp = "^\\+[1-9]\\d{6,14}$", message = "Invalid phone number")
     private String phoneNumber;
 
     @Schema(description = "User role", example = "USER")
@@ -65,11 +74,12 @@ public class UserPatchRequest {
             example = "0.10",
             nullable = true
     )
-    private Optional<BigDecimal> markupPercentage;
+    private Optional<@DecimalMin(value = "0.0", message = "Invalid markup percentage") BigDecimal> markupPercentage;
 
     @Schema(description = "UI localization preference", example = "RUS")
     private Localization localization;
 
     @Schema(description = "Profile data (surname, name, patronymic)")
+    @Valid
     private Profile profile;
 }

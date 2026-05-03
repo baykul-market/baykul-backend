@@ -14,6 +14,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.FetchType;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -76,6 +77,7 @@ public class Profile {
             nullable = true,
             example = "Doe"
     )
+    @Size(max = 50, message = "Surname must be at most 50 characters")
     @Column(name = "surname", length = 50)
     @JsonView({Views.UserView.Get.class, Views.UserView.Post.class, Views.UserView.Patch.class})
     private String surname;
@@ -86,6 +88,7 @@ public class Profile {
             nullable = true,
             example = "John"
     )
+    @Size(max = 50, message = "Name must be at most 50 characters")
     @Column(name = "name", length = 50)
     @JsonView({Views.UserView.Get.class, Views.UserView.Post.class, Views.UserView.Patch.class})
     private String name;
@@ -96,6 +99,7 @@ public class Profile {
             nullable = true,
             example = "Michael"
     )
+    @Size(max = 50, message = "Patronymic must be at most 50 characters")
     @Column(name = "patronymic", length = 50)
     @JsonView({Views.UserView.Get.class, Views.UserView.Post.class, Views.UserView.Patch.class})
     private String patronymic;
