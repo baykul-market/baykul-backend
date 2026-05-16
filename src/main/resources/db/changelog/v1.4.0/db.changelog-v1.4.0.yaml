@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.4.0-update-null-emails
+      author: antigravity
+      changes:
+        - sql:
+            sql: UPDATE users SET email = 'change_me_' || login || '@baykul.by' WHERE email IS NULL;
+  - changeSet:
+      id: 1.4.0-make-email-not-null
+      author: antigravity
+      changes:
+        - addNotNullConstraint:
+            tableName: users
+            columnName: email
+            columnDataType: varchar(255)
