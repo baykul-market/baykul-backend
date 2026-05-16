@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.5.0-increase-exchange-rate-precision
+      author: antigravity
+      changes:
+        - modifyDataType:
+            tableName: currency_exchange
+            columnName: rate
+            newDataType: numeric(38,10)
