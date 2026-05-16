@@ -411,17 +411,13 @@ public class OrderService {
 
         if (allCanceled) {
             order.setStatus(OrderStatus.CANCELLED);
-        }
-        else if (allDelivered) {
+        } else if (allDelivered) {
             order.setStatus(OrderStatus.COMPLETED);
-        }
-        else if (allShipped) {
+        } else if (allShipped) {
             order.setStatus(OrderStatus.READY_FOR_PICKUP);
-        }
-        else if (allInWarehouse) {
+        } else if (allInWarehouse) {
             order.setStatus(OrderStatus.IN_WAREHOUSE);
-        }
-        else if (anyOnWay) {
+        } else if (anyOnWay) {
             order.setStatus(OrderStatus.ON_WAY);
         }
     }
@@ -442,31 +438,25 @@ public class OrderService {
             } else {
                 return new PageImpl<>(Collections.emptyList());
             }
-        }
-        else if (hasNumber && hasStatus) {
+        } else if (hasNumber && hasStatus) {
             return iOrderProductRepository.findAllByNumberStartingWithAndStatus(number.toString(), status, pageable);
-        }
-        else if (hasNumber && forBill) {
+        } else if (hasNumber && forBill) {
             return iOrderProductRepository.findAllByBillIsNullAndStatusInAndNumberStartingWith(
                     BoxStatus.REQUIRED_FOR_BILL_CREATION,
                     number.toString(),
                     pageable
             );
-        }
-        else if (hasStatus && forBill) {
+        } else if (hasStatus && forBill) {
             if (BoxStatus.REQUIRED_FOR_BILL_CREATION.contains(status)) {
                 return iOrderProductRepository.findAllByStatusAndBillIsNull(status, pageable);
             } else {
                 return new PageImpl<>(Collections.emptyList());
             }
-        }
-        else if (hasNumber) {
+        } else if (hasNumber) {
             return iOrderProductRepository.findAllByNumberStartingWith(number.toString(), pageable);
-        }
-        else if (hasStatus) {
+        } else if (hasStatus) {
             return iOrderProductRepository.findAllByStatus(status, pageable);
-        }
-        else if (forBill) {
+        } else if (forBill) {
             return iOrderProductRepository.findAllByBillIsNullAndStatusIn(BoxStatus.REQUIRED_FOR_BILL_CREATION, pageable);
         }
 

@@ -27,9 +27,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -72,7 +77,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUserById_ShouldUpdateFieldsAndSave() {
+    void updateUserByIdShouldUpdateFieldsAndSave() {
         when(authService.getAuthInfo()).thenReturn(authInfo);
 
         UserPatchRequest patch = new UserPatchRequest();
@@ -100,7 +105,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUserById_ShouldClearMarkupPercentage_WhenExplicitlyNull() {
+    void updateUserByIdShouldClearMarkupPercentageWhenExplicitlyNull() {
         when(authService.getAuthInfo()).thenReturn(authInfo);
 
         existingUser.setMarkupPercentage(new BigDecimal("10.0"));
@@ -118,7 +123,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUserById_ShouldNotUpdateMarkup_WhenOmitted() {
+    void updateUserByIdShouldNotUpdateMarkupWhenOmitted() {
         existingUser.setMarkupPercentage(new BigDecimal("10.0"));
 
         UserPatchRequest patch = new UserPatchRequest();
@@ -135,7 +140,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUserById_ShouldReturnConflict_WhenLoginExists() {
+    void updateUserByIdShouldReturnConflictWhenLoginExists() {
         UserPatchRequest patch = new UserPatchRequest();
         patch.setLogin("existingLogin");
 
@@ -153,7 +158,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUserById_ShouldThrowNotFound_WhenUserDoesNotExist() {
+    void updateUserByIdShouldThrowNotFoundWhenUserDoesNotExist() {
         when(iUserRepository.findById(userId)).thenReturn(Optional.empty());
 
         UserPatchRequest patch = new UserPatchRequest();
@@ -162,7 +167,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateProfile_ShouldClearSensitiveFieldsAndDelegate() {
+    void updateProfileShouldClearSensitiveFieldsAndDelegate() {
         authInfo.setLogin("userLogin");
         when(authService.getAuthInfo()).thenReturn(authInfo);
 

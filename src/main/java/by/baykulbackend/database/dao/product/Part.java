@@ -78,7 +78,7 @@ public class Part {
             maxLength = 255,
             example = "Engine Oil LL01 5W30"
     )
-    @Column(name = "name", nullable = false)
+    @Column(name = "name")
     @JsonView({Views.PartView.Get.class, Views.PartView.Post.class, Views.PartView.Patch.class})
     private String name;
 

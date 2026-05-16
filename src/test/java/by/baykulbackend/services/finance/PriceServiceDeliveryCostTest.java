@@ -24,7 +24,12 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for {@link PriceService#calculateDeliveryCost(BigDecimal, User)}.
@@ -122,7 +127,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should apply global rule when user has no personal rules")
-        void shouldApplyGlobalRule_whenUserHasNoPersonalRules() {
+        void shouldApplyGlobalRuleWhenUserHasNoPersonalRules() {
             // The fallback query returns a global rule (user == null)
             DeliveryCostConfig globalRule = fixedRule(BigDecimal.ZERO, DELIVERY_COST, null);
             when(deliveryRepo.findDeliveryCost(ORDER_SUM, USER_ID)).thenReturn(Optional.of(globalRule));
@@ -137,7 +142,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should return zero when no global rule applies either")
-        void shouldReturnZero_whenNoRuleApplies() {
+        void shouldReturnZeroWhenNoRuleApplies() {
             when(deliveryRepo.findDeliveryCost(ORDER_SUM, USER_ID)).thenReturn(Optional.empty());
 
             BigDecimal result = priceService.calculateDeliveryCost(ORDER_SUM, testUser);
@@ -147,7 +152,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should use global-only query when user is null")
-        void shouldUseGlobalOnlyQuery_whenUserIsNull() {
+        void shouldUseGlobalOnlyQueryWhenUserIsNull() {
             DeliveryCostConfig globalRule = fixedRule(BigDecimal.ZERO, DELIVERY_COST, null);
             when(deliveryRepo.findDeliveryCost(ORDER_SUM)).thenReturn(Optional.of(globalRule));
 
@@ -170,7 +175,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should apply user's personal SUM rule instead of global rule")
-        void shouldApplyPersonalRule_sumType() {
+        void shouldApplyPersonalRuleSumType() {
             BigDecimal personalCost = new BigDecimal("5.00");
             DeliveryCostConfig personalRule = fixedRule(BigDecimal.ZERO, personalCost, testUser);
             when(deliveryRepo.findDeliveryCost(ORDER_SUM, USER_ID)).thenReturn(Optional.of(personalRule));
@@ -182,7 +187,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should apply user's personal PERCENTAGE rule correctly")
-        void shouldApplyPersonalRule_percentageType() {
+        void shouldApplyPersonalRulePercentageType() {
             // 10% of 200.00 = 20.00
             BigDecimal pct = new BigDecimal("0.10");
             BigDecimal expected = ORDER_SUM.multiply(pct).setScale(2, RoundingMode.HALF_UP); // 20.00
@@ -197,7 +202,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Repository fallback query is always used when user is provided")
-        void shouldAlwaysUseFallbackQuery_whenUserProvided() {
+        void shouldAlwaysUseFallbackQueryWhenUserProvided() {
             when(deliveryRepo.findDeliveryCost(ORDER_SUM, USER_ID)).thenReturn(Optional.empty());
 
             priceService.calculateDeliveryCost(ORDER_SUM, testUser);
@@ -217,7 +222,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should return zero for null order sum")
-        void shouldReturnZero_forNullOrderSum() {
+        void shouldReturnZeroForNullOrderSum() {
             BigDecimal result = priceService.calculateDeliveryCost(null, testUser);
 
             assertThat(result).isEqualByComparingTo(BigDecimal.ZERO);
@@ -226,7 +231,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should return zero for zero order sum")
-        void shouldReturnZero_forZeroOrderSum() {
+        void shouldReturnZeroForZeroOrderSum() {
             BigDecimal result = priceService.calculateDeliveryCost(BigDecimal.ZERO, testUser);
 
             assertThat(result).isEqualByComparingTo(BigDecimal.ZERO);
@@ -235,7 +240,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should return zero for negative order sum")
-        void shouldReturnZero_forNegativeOrderSum() {
+        void shouldReturnZeroForNegativeOrderSum() {
             BigDecimal result = priceService.calculateDeliveryCost(new BigDecimal("-1.00"), testUser);
 
             assertThat(result).isEqualByComparingTo(BigDecimal.ZERO);
@@ -244,7 +249,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should return zero when user has no ID (anonymous-like user object)")
-        void shouldUseGlobalOnlyQuery_whenUserHasNoId() {
+        void shouldUseGlobalOnlyQueryWhenUserHasNoId() {
             User anonymousLikeUser = new User(); // no ID set
             DeliveryCostConfig globalRule = fixedRule(BigDecimal.ZERO, DELIVERY_COST, null);
             when(deliveryRepo.findDeliveryCost(ORDER_SUM)).thenReturn(Optional.of(globalRule));
@@ -259,7 +264,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should return zero when rules list is completely empty")
-        void shouldReturnZero_whenNoRulesExistAtAll() {
+        void shouldReturnZeroWhenNoRulesExistAtAll() {
             when(deliveryRepo.findDeliveryCost(ORDER_SUM, USER_ID)).thenReturn(Optional.empty());
 
             BigDecimal result = priceService.calculateDeliveryCost(ORDER_SUM, testUser);
@@ -269,7 +274,7 @@ class PriceServiceDeliveryCostTest {
 
         @Test
         @DisplayName("Should convert amounts using delivery currency when configured")
-        void shouldConvertToDeliveryCurrency_whenConfigured() {
+        void shouldConvertToDeliveryCurrencyWhenConfigured() {
             priceConfig.setDeliveryCurrency(Currency.EUR);
             BigDecimal orderSumInEur = new BigDecimal("50.00");
             BigDecimal deliveryCostInEur = new BigDecimal("5.00");

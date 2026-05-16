@@ -85,7 +85,9 @@ public class BalanceService {
         );
 
         switch (balanceOperation.getOperationType()) {
-            case REPLENISHMENT -> newAccount = currentAccount.add(amountToProcess);
+            case REPLENISHMENT -> {
+                newAccount = currentAccount.add(amountToProcess);
+            }
             case PAYMENT, WITHDRAWAL -> {
                 if (currentAccount.compareTo(amountToProcess) < 0) {
                     throw new BadRequestException("Insufficient funds");

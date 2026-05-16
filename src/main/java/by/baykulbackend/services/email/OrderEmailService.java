@@ -156,7 +156,9 @@ public class OrderEmailService {
     }
     
     private String formatDateTime(LocalDateTime dateTime, Localization localization) {
-        if (dateTime == null) return "";
+        if (dateTime == null) {
+            return "";
+        }
         String pattern = localization == Localization.RUS 
             ? "dd.MM.yyyy HH:mm" 
             : "MM/dd/yyyy HH:mm";
@@ -185,7 +187,7 @@ public class OrderEmailService {
             case CANCELLED -> context.setVariable("cancellationMessage", localization == Localization.RUS
                     ? "Если вы не отменяли заказ, свяжитесь с поддержкой"
                     : "If you didn't cancel the order, please contact support");
-            default -> {}
+            default -> { }
         }
     }
 }
