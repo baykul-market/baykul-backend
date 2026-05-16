@@ -27,7 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CurrencyExchangeService {
     private static final String RUB = "RUB";
-    private static final int RATE_SCALE = 6;
+    private static final int RATE_SCALE = 10;
 
     private final AuthService authService;
     private final ICurrencyExchangeRepository iCurrencyExchangeRepository;
