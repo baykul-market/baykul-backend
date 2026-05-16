@@ -9,3 +9,5 @@ databaseChangeLog:
       file: classpath:db/changelog/v1.3.0/db.changelog-v1.3.0.yaml
   - include:
       file: classpath:db/changelog/v1.4.0/db.changelog-v1.4.0.yaml
+  - include:
+      file: classpath:db/changelog/v1.5.0/db.changelog-v1.5.0.yaml

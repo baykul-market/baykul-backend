@@ -30,6 +30,8 @@ spring:
       max-lifetime: 1800000
       validation-timeout: 5000
       leak-detection-threshold: 60000
+      data-source-properties:
+        reWriteBatchedInserts: true
 
   jpa:
     generate-ddl: false

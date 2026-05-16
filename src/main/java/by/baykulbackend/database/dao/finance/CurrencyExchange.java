@@ -89,7 +89,7 @@ public class CurrencyExchange {
             requiredMode = Schema.RequiredMode.REQUIRED,
             example = "0.85"
     )
-    @Column(name = "rate", nullable = false)
+    @Column(name = "rate", nullable = false, precision = 38, scale = 10)
     @JsonView({
             Views.CurrencyExchangeView.Get.class,
             Views.CurrencyExchangeView.Post.class,

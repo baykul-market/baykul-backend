@@ -27,7 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CurrencyExchangeService {
     private static final String RUB = "RUB";
-    private static final int RATE_SCALE = 6;
+    private static final int RATE_SCALE = 10;
 
     private final AuthService authService;
     private final ICurrencyExchangeRepository iCurrencyExchangeRepository;
@@ -210,6 +210,13 @@ public class CurrencyExchangeService {
         if (currencyExchangeDto.getRate() == null) {
             response.put("error_rate", "Rate value must not be empty");
             log.warn("Rate value must not be empty");
+            return true;
+        }
+
+        if (currencyExchangeDto.getCurrencyFrom() != null &&
+                currencyExchangeDto.getCurrencyFrom().equals(currencyExchangeDto.getCurrencyTo())) {
+            response.put("error_currency", "Source and target currencies must be different");
+            log.warn("Attempt to create exchange rate for identical currencies: {}", currencyExchangeDto.getCurrencyFrom());
             return true;
         }
 
