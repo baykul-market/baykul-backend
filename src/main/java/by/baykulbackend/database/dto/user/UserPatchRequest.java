@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -17,15 +18,19 @@ import java.util.Optional;
 /**
  * DTO used exclusively for admin PATCH /api/v1/users/id requests.
  *
- * <p>All fields are optional. Only fields that are present in the JSON body are applied.
+ * <p>
+ * All fields are optional. Only fields that are present in the JSON body are
+ * applied.
  * Fields absent from the body are silently ignored.
  *
- * <p>{@link #markupPercentage} supports three distinct states thanks to
+ * <p>
+ * {@link #markupPercentage} supports three distinct states thanks to
  * {@link NullableDecimalDeserializer}:
  * <ul>
- *   <li><b>Absent</b> — do not touch the stored value.</li>
- *   <li><b>JSON {@code null}</b> — clear to {@code null}, activating global config fallback.</li>
- *   <li><b>Numeric value</b> — set to that value.</li>
+ * <li><b>Absent</b> — do not touch the stored value.</li>
+ * <li><b>JSON {@code null}</b> — clear to {@code null}, activating global
+ * config fallback.</li>
+ * <li><b>Numeric value</b> — set to that value.</li>
  * </ul>
  */
 @Data
@@ -43,6 +48,7 @@ public class UserPatchRequest {
     private String password;
 
     @Schema(description = "Email address", example = "john@example.com")
+    @Email(message = "Invalid email format")
     private String email;
 
     @Schema(description = "Phone number", example = "+375291234567")
@@ -62,18 +68,14 @@ public class UserPatchRequest {
      * Individual markup percentage.
      *
      * <ul>
-     *   <li>{@code null} (field absent from JSON) → do not change current value.</li>
-     *   <li>{@code Optional.empty()} (JSON {@code null}) → clear individual markup;
-     *       price engine will fall back to global configuration.</li>
-     *   <li>{@code Optional.of(v)} → set to {@code v}.</li>
+     * <li>{@code null} (field absent from JSON) → do not change current value.</li>
+     * <li>{@code Optional.empty()} (JSON {@code null}) → clear individual markup;
+     * price engine will fall back to global configuration.</li>
+     * <li>{@code Optional.of(v)} → set to {@code v}.</li>
      * </ul>
      */
     @JsonDeserialize(using = NullableDecimalDeserializer.class)
-    @Schema(
-            description = "Individual markup percentage. Send null to clear (revert to global fallback).",
-            example = "0.10",
-            nullable = true
-    )
+    @Schema(description = "Individual markup percentage. Send null to clear (revert to global fallback).", example = "0.10", nullable = true)
     private Optional<@DecimalMin(value = "0.0", message = "Invalid markup percentage") BigDecimal> markupPercentage;
 
     @Schema(description = "UI localization preference", example = "RUS")
