@@ -7,17 +7,25 @@ import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.JwtAuthenticationException;
 import by.baykulbackend.security.JwtProvider;
+import by.baykulbackend.database.dto.security.ForgotPasswordRequest;
+import by.baykulbackend.database.dao.user.Localization;
 import by.baykulbackend.database.dto.security.JwtRequest;
 import by.baykulbackend.database.dto.security.JwtResponse;
+import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.email.EmailService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.context.Context;
+
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -28,6 +36,7 @@ public class AuthService {
     private final IRefreshTokenRepository iRefreshTokenRepository;
     private final IUserRepository iUserRepository;
     private final RequestService requestService;
+    private final EmailService emailService;
 
     /**
      * Authenticates a user by login and password.
@@ -163,5 +172,49 @@ public class AuthService {
      */
     public JwtAuthentication getAuthInfo() {
         return (JwtAuthentication) SecurityContextHolder.getContext().getAuthentication();
+    }
+
+    /**
+     * Resets user password and sends it to their email.
+     * Accepts either login or email as identifier.
+     *
+     * @param request ForgotPasswordRequest containing user identifier
+     * @throws NotFoundException if user not found
+     * @throws JwtAuthenticationException if user has no email registered
+     */
+    public void forgotPassword(@NonNull ForgotPasswordRequest request) {
+        String identifier = request.getIdentifier();
+        User user = iUserRepository.findByLogin(identifier)
+                .or(() -> iUserRepository.findByEmail(identifier))
+                .orElseThrow(() -> new NotFoundException("User with identifier " + identifier + " not found"));
+
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            log.warn("User {} requested password reset but has no email registered", user.getLogin());
+            throw new JwtAuthenticationException("User has no email registered", HttpStatus.BAD_REQUEST);
+        }
+
+        String newPassword = RandomStringUtils.randomAlphanumeric(10);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        iUserRepository.save(user);
+
+        // Invalidate all sessions for this user
+        iRefreshTokenRepository.deleteByUser(user);
+        log.info("All sessions for user {} have been invalidated after password reset", user.getLogin());
+
+        // Send email
+        Context context = new Context();
+        context.setVariable("login", user.getLogin());
+        context.setVariable("newPassword", newPassword);
+        
+        String subject = user.getLocalization() == Localization.RUS ? "Сброс пароля" : "Password Reset";
+        emailService.sendEmail(
+                user.getEmail(),
+                subject,
+                "password-reset",
+                user.getLocalization() != null ? user.getLocalization() : Localization.RUS,
+                context
+        );
+
+        log.info("Password reset email sent to user {}", user.getLogin());
     }
 }
