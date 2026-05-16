@@ -16,12 +16,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class ProductCsvServiceTest {
@@ -33,7 +36,7 @@ class ProductCsvServiceTest {
     private ProductCsvService productCsvService;
 
     @Test
-    void parseParts_AllValid_ShouldReturn200() {
+    void parsePartsAllValidShouldReturn200() {
         // Arrange
         String csvContent = "article;name;weight;min_count;storage_count;return_part;price;brand\n" +
                 "art1;Name1;1.0;1;1;0.0;10.0;Brand1\n" +
@@ -62,7 +65,7 @@ class ProductCsvServiceTest {
     }
 
     @Test
-    void parseParts_WithInvalidRows_ShouldReturn207() {
+    void parsePartsWithInvalidRowsShouldReturn207() {
         // Arrange
         String csvContent = "article;name;weight;min_count;storage_count;return_part;price;brand\n" +
                 "art1;Name1;1.0;1;1;0.0;10.0;Brand1\n" +
@@ -89,7 +92,7 @@ class ProductCsvServiceTest {
     }
 
     @Test
-    void parseParts_EmptyName_ShouldBeValidAndSaved() {
+    void parsePartsEmptyNameShouldBeValidAndSaved() {
         // Arrange
         String csvContent = "article;name;weight;min_count;storage_count;return_part;price;brand\n" +
                 "art1;;1.0;1;1;0.0;10.0;Brand1"; // Empty name

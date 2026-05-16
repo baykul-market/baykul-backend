@@ -25,7 +25,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -245,9 +244,15 @@ public class ProductCsvService {
      * @return An {@link Optional} containing an error message if any string is too long, or empty if valid.
      */
     private Optional<String> validateFieldLengths(String[] line) {
-        if (line[0].length() > 50) return Optional.of("Article exceeds 50 characters.");
-        if (line[1].length() > 255) return Optional.of("Name exceeds 255 characters.");
-        if (line[7].length() > 50) return Optional.of("Brand exceeds 50 characters.");
+        if (line[0].length() > 50) {
+            return Optional.of("Article exceeds 50 characters.");
+        }
+        if (line[1].length() > 255) {
+            return Optional.of("Name exceeds 255 characters.");
+        }
+        if (line[7].length() > 50) {
+            return Optional.of("Brand exceeds 50 characters.");
+        }
         return Optional.empty();
     }
 

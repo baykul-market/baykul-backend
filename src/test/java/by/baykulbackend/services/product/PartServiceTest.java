@@ -5,8 +5,6 @@ import by.baykulbackend.database.dao.product.Part;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.product.PartByArticlesRequestDto;
 import by.baykulbackend.database.dto.product.PartByArticlesResponseDto;
-import by.baykulbackend.database.dto.product.PartDto;
-import by.baykulbackend.database.model.Permission;
 import by.baykulbackend.database.model.Role;
 import by.baykulbackend.database.repository.product.IPartRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
@@ -27,8 +25,17 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PartServiceTest {
@@ -65,7 +72,7 @@ class PartServiceTest {
     }
 
     @Test
-    void getPartsByArticles_ShouldPreserveOrder() {
+    void getPartsByArticlesShouldPreserveOrder() {
         // Arrange
         String artA = "ARTICLE_A";
         String artB = "ARTICLE_B";
@@ -95,7 +102,7 @@ class PartServiceTest {
     }
 
     @Test
-    void getPartsByArticles_ShouldHandleDuplicates() {
+    void getPartsByArticlesShouldHandleDuplicates() {
         // Arrange
         String artA = "ARTICLE_A";
         List<String> requestedArticles = List.of(artA, artA);
@@ -120,7 +127,7 @@ class PartServiceTest {
     }
 
     @Test
-    void getPartsByArticles_ShouldFilterNotFound() {
+    void getPartsByArticlesShouldFilterNotFound() {
         // Arrange
         String artA = "ARTICLE_A";
         String artC = "ARTICLE_C"; // Not in DB
@@ -145,7 +152,7 @@ class PartServiceTest {
     }
 
     @Test
-    void getPartsByArticles_ShouldReturnEmptyForNullOrEmptyRequest() {
+    void getPartsByArticlesShouldReturnEmptyForNullOrEmptyRequest() {
         // Act & Assert
         assertNotNull(partService.getPartsByArticles(null).getParts());
         assertTrue(partService.getPartsByArticles(null).getParts().isEmpty());
