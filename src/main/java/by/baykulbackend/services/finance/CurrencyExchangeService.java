@@ -213,6 +213,13 @@ public class CurrencyExchangeService {
             return true;
         }
 
+        if (currencyExchangeDto.getCurrencyFrom() != null &&
+                currencyExchangeDto.getCurrencyFrom().equals(currencyExchangeDto.getCurrencyTo())) {
+            response.put("error_currency", "Source and target currencies must be different");
+            log.warn("Attempt to create exchange rate for identical currencies: {}", currencyExchangeDto.getCurrencyFrom());
+            return true;
+        }
+
         if (currencyExchangeDto.getRate().compareTo(BigDecimal.ZERO) <= 0) {
             response.put("error_rate", "Rate value must be greater than zero");
             log.warn("Rate value must be greater than zero");
