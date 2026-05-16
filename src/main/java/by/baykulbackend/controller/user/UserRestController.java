@@ -319,6 +319,7 @@ public class UserRestController {
                                     value = """
                                             {
                                               "error_login": "The login must not be empty",
+                                              "error_email": "The email must not be empty",
                                               "error_password": "The password must not be empty"
                                             }
                                             """
@@ -438,7 +439,7 @@ public class UserRestController {
                                     value = """
                                             {
                                               "error_login": "The login must not be empty",
-                                              "error_data": "One of the following must be filled in: email, phone number"
+                                              "error_email": "The email must not be empty"
                                             }
                                             """
                             )

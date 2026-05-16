@@ -213,30 +213,15 @@ public class UserService {
         }
 
         if (patch.getEmail() != null) {
-            String newEmail = StringUtils.isBlank(patch.getEmail()) ? null : patch.getEmail();
-            if (newEmail == null) {
-                boolean willHavePhone = patch.getPhoneNumber() != null 
-                        ? !StringUtils.isBlank(patch.getPhoneNumber()) 
-                        : !StringUtils.isBlank(userFromDB.getPhoneNumber());
-                if (!willHavePhone) {
-                    response.put("error_email", "One of the following must be filled in: email, phone number");
-                    return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-                }
+            if (StringUtils.isBlank(patch.getEmail())) {
+                response.put("error_email", "Email cannot be empty");
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
-            updated |= updateField(newEmail, userFromDB.getEmail(), userFromDB::setEmail, "email", id);
+            updated |= updateField(patch.getEmail(), userFromDB.getEmail(), userFromDB::setEmail, "email", id);
         }
 
         if (patch.getPhoneNumber() != null) {
             String newPhone = StringUtils.isBlank(patch.getPhoneNumber()) ? null : patch.getPhoneNumber();
-            if (newPhone == null) {
-                boolean willHaveEmail = patch.getEmail() != null 
-                        ? !StringUtils.isBlank(patch.getEmail()) 
-                        : !StringUtils.isBlank(userFromDB.getEmail());
-                if (!willHaveEmail) {
-                    response.put("error_phone_number", "One of the following must be filled in: email, phone number");
-                    return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-                }
-            }
             updated |= updateField(newPhone, userFromDB.getPhoneNumber(), userFromDB::setPhoneNumber, "phone number", id);
         }
 
@@ -438,9 +423,9 @@ public class UserService {
             return true;
         }
 
-        if (StringUtils.isBlank(user.getEmail()) && StringUtils.isBlank(user.getPhoneNumber())) {
-            response.put("error_data", "One of the following must be filled in: email, phone number");
-            log.warn("One of the following must be filled in: email, phone number");
+        if (StringUtils.isBlank(user.getEmail())) {
+            response.put("error_email", "The email must not be empty");
+            log.warn("The email must not be empty");
             return true;
         }
 

@@ -189,4 +189,71 @@ class UserServiceTest {
         assertNull(existingUser.getMarkupPercentage());
         verify(iUserRepository).save(existingUser);
     }
+
+    @Test
+    void createUserShouldReturnBadRequestWhenEmailIsNull() {
+        User user = new User();
+        user.setLogin("testUser");
+        user.setPassword("password123");
+        user.setEmail(null);
+
+        ResponseEntity<?> response = userService.createUser(user);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(((Map<?, ?>) response.getBody()).containsKey("error_email"));
+        verify(iUserRepository, never()).save(any());
+    }
+
+    @Test
+    void createUserShouldReturnBadRequestWhenEmailIsEmpty() {
+        User user = new User();
+        user.setLogin("testUser");
+        user.setPassword("password123");
+        user.setEmail("");
+
+        ResponseEntity<?> response = userService.createUser(user);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(((Map<?, ?>) response.getBody()).containsKey("error_email"));
+        verify(iUserRepository, never()).save(any());
+    }
+
+    @Test
+    void registerUserShouldReturnBadRequestWhenEmailIsNull() {
+        User user = new User();
+        user.setLogin("testUser");
+        user.setPassword("password123");
+        user.setEmail(null);
+
+        ResponseEntity<?> response = userService.registerUser(user);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(((Map<?, ?>) response.getBody()).containsKey("error_email"));
+        verify(iUserRepository, never()).save(any());
+    }
+
+    @Test
+    void updateUserByIdShouldReturnBadRequestWhenSettingEmailToNull() {
+        UserPatchRequest patch = new UserPatchRequest();
+        patch.setEmail(null); 
+        // Note: patch.setEmail(null) means the field was present in the JSON body as null
+        // But in Java, if it's not present, it's also null.
+        // Wait, the logic in UserService is: if (patch.getEmail() != null)
+        // If it's null, we just ignore it.
+        // The issue is when it's an empty string. Let's test empty string.
+    }
+
+    @Test
+    void updateUserByIdShouldReturnBadRequestWhenSettingEmailToEmpty() {
+        when(iUserRepository.findById(userId)).thenReturn(Optional.of(existingUser));
+        
+        UserPatchRequest patch = new UserPatchRequest();
+        patch.setEmail("");
+
+        ResponseEntity<?> response = userService.updateUserById(userId, patch);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertTrue(((Map<?, ?>) response.getBody()).containsKey("error_email"));
+        verify(iUserRepository, never()).save(any());
+    }
 }

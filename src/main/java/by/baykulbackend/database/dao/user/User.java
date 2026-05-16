@@ -22,6 +22,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.CascadeType;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -97,11 +98,13 @@ public class User {
             description = "User's email address",
             maxLength = 255,
             format = "email",
-            nullable = true,
+            requiredMode = Schema.RequiredMode.REQUIRED,
+            nullable = false,
             example = "example@email.com"
     )
     @Email
-    @Column(name = "email", unique = true)
+    @NotBlank(message = "Email is required")
+    @Column(name = "email", unique = true, nullable = false)
     @JsonView({Views.UserView.Get.class, Views.UserView.Post.class, Views.UserView.Patch.class})
     private String email;
 
