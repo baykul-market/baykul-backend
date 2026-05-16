@@ -23,7 +23,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class AuthServiceTest {
@@ -51,7 +53,7 @@ public class AuthServiceTest {
     }
 
     @Test
-    void forgotPassword_Success_WithLogin() {
+    void forgotPasswordSuccessWithLogin() {
         ForgotPasswordRequest request = new ForgotPasswordRequest("testuser");
         when(userRepository.findByLogin("testuser")).thenReturn(Optional.of(testUser));
         when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
@@ -64,7 +66,7 @@ public class AuthServiceTest {
     }
 
     @Test
-    void forgotPassword_Success_WithEmail() {
+    void forgotPasswordSuccessWithEmail() {
         ForgotPasswordRequest request = new ForgotPasswordRequest("test@example.com");
         when(userRepository.findByLogin("test@example.com")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(testUser));
@@ -78,7 +80,7 @@ public class AuthServiceTest {
     }
 
     @Test
-    void forgotPassword_UserNotFound() {
+    void forgotPasswordUserNotFound() {
         ForgotPasswordRequest request = new ForgotPasswordRequest("nonexistent");
         when(userRepository.findByLogin("nonexistent")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("nonexistent")).thenReturn(Optional.empty());
@@ -90,7 +92,7 @@ public class AuthServiceTest {
     }
 
     @Test
-    void forgotPassword_NoEmailRegistered() {
+    void forgotPasswordNoEmailRegistered() {
         testUser.setEmail(null);
         ForgotPasswordRequest request = new ForgotPasswordRequest("testuser");
         when(userRepository.findByLogin("testuser")).thenReturn(Optional.of(testUser));
