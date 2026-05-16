@@ -1,6 +1,7 @@
 package by.baykulbackend.controller.product;
 
 import by.baykulbackend.database.dao.product.Part;
+import by.baykulbackend.database.dto.product.CsvUploadResult;
 import by.baykulbackend.database.dto.product.PartDto;
 import by.baykulbackend.database.dto.product.ProductDto;
 import by.baykulbackend.database.dto.security.Views;
@@ -393,7 +394,35 @@ public class PartRestController {
                                     summary = "Upload successful",
                                     value = """
                                             {
-                                              "parsed": "true"
+                                              "saved": 100,
+                                              "updated": 50,
+                                              "skipped": 0,
+                                              "skippedDetails": []
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "207",
+                    description = "Multi-Status - Some rows failed validation",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "Partial success example",
+                                    summary = "Some rows were skipped",
+                                    value = """
+                                            {
+                                              "saved": 98,
+                                              "updated": 50,
+                                              "skipped": 2,
+                                              "skippedDetails": [
+                                                {
+                                                  "rowNumber": 2,
+                                                  "errorMessage": "Required fields are missing. Article, price, and brand must be provided.",
+                                                  "rawData": ";;150.4;3;5;3.01;;"
+                                                }
+                                              ]
                                             }
                                             """
                             )
@@ -409,10 +438,16 @@ public class PartRestController {
                                     summary = "CSV parsing errors",
                                     value = """
                                             {
-                                              "error": "Error while parsing csv file",
-                                              "error_row_2": "Incorrect number of columns",
-                                              "error_row_3": "Duplicate article 2405947",
-                                              "error_row_4": "Incorrect name size"
+                                              "saved": 0,
+                                              "updated": 0,
+                                              "skipped": 0,
+                                              "skippedDetails": [
+                                                {
+                                                  "rowNumber": 0,
+                                                  "errorMessage": "Error while parsing CSV file: Number of data fields does not match number of headers.",
+                                                  "rawData": ""
+                                                }
+                                              ]
                                             }
                                             """
                             )
@@ -454,7 +489,7 @@ public class PartRestController {
     @PreAuthorize("hasAnyAuthority('products:write')")
     @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE},
             produces = {MediaType.APPLICATION_JSON_VALUE})
-    public ResponseEntity<?> uploadParts(
+    public ResponseEntity<CsvUploadResult> uploadParts(
             @Parameter(
                     description = "CSV file with parts data",
                     required = true

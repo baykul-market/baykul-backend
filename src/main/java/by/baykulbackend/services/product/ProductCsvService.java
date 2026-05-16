@@ -2,7 +2,9 @@ package by.baykulbackend.services.product;
 
 import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
+import by.baykulbackend.database.dto.product.CsvUploadResult;
 import by.baykulbackend.database.dto.product.ProductDto;
+import by.baykulbackend.database.dto.product.SkippedRow;
 import by.baykulbackend.database.repository.product.IPartRepository;
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
@@ -23,7 +25,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -53,14 +54,13 @@ public class ProductCsvService {
      * @return A {@link ResponseEntity} containing a map of statuses and any row-specific validation errors.
      */
     @Transactional
-    public ResponseEntity<?> parseParts(ProductDto productDto) {
+    public ResponseEntity<CsvUploadResult> parseParts(ProductDto productDto) {
         long processStartTime = System.currentTimeMillis();
         String fileName = productDto.getCsvFile().getOriginalFilename();
         log.info("Starting CSV processing for file: {}", fileName);
 
-        Map<String, String> response = new HashMap<>();
+        CsvUploadResult result = new CsvUploadResult();
         int totalLinesProcessed = 0;
-        int totalPartsSaved = 0;
 
         try (BufferedReader br = new BufferedReader(new InputStreamReader(productDto.getCsvFile().getInputStream(), StandardCharsets.UTF_8));
              CSVReader csvReader = new CSVReaderBuilder(br)
@@ -76,7 +76,7 @@ public class ProductCsvService {
             while ((line = csvReader.readNext()) != null) {
                 lines.add(line);
                 if (lines.size() >= CHUNK_SIZE) {
-                    totalPartsSaved += processChunk(lines, response, lineNumber - lines.size(), chunkNumber);
+                    processChunk(lines, result, lineNumber - lines.size(), chunkNumber);
                     totalLinesProcessed += lines.size();
                     lines.clear();
                     chunkNumber++;
@@ -84,22 +84,24 @@ public class ProductCsvService {
                 lineNumber++;
             }
             if (!lines.isEmpty()) {
-                totalPartsSaved += processChunk(lines, response, lineNumber - lines.size(), chunkNumber);
+                processChunk(lines, result, lineNumber - lines.size(), chunkNumber);
                 totalLinesProcessed += lines.size();
             }
 
         } catch (IOException | CsvValidationException e) {
             log.error("Error while parsing CSV file '{}': {}", fileName, e.getMessage(), e);
-            response.put("error", "Error while parsing CSV file: " + e.getMessage());
-            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            result.getSkippedDetails().add(new SkippedRow(0, "Error while parsing CSV file: " + e.getMessage(), ""));
+            return new ResponseEntity<>(result, HttpStatus.BAD_REQUEST);
         }
 
         long totalTimeMs = System.currentTimeMillis() - processStartTime;
-        log.info("CSV processing completed in {} ms. Total lines read: {}. Successfully saved: {}. Validation errors: {}",
-                totalTimeMs, totalLinesProcessed, totalPartsSaved, response.size());
+        log.info("CSV processing completed in {} ms. Total lines read: {}. Successfully saved: {}. Updated: {}. Skipped: {}",
+                totalTimeMs, totalLinesProcessed, result.getSaved(), result.getUpdated(), result.getSkipped());
 
-        response.put("status", "CSV processing finished.");
-        return ResponseEntity.ok(response);
+        if (result.getSkipped() > 0) {
+            return ResponseEntity.status(HttpStatus.MULTI_STATUS).body(result);
+        }
+        return ResponseEntity.ok(result);
     }
 
     /**
@@ -110,7 +112,7 @@ public class ProductCsvService {
      * @param response        The response map to populate with any validation errors.
      * @param startLineNumber The starting line number in the original CSV (for accurate error reporting).
      */
-    private int processChunk(List<String[]> lines, Map<String, String> response, int startLineNumber, int chunkNumber) {
+    private void processChunk(List<String[]> lines, CsvUploadResult result, int startLineNumber, int chunkNumber) {
         long chunkStartTime = System.currentTimeMillis();
 
         // Phase 1: Extract articles from the chunk
@@ -133,8 +135,8 @@ public class ProductCsvService {
         long startValidation = System.currentTimeMillis();
         int currentLineNumber = startLineNumber;
         for (String[] line : lines) {
-            if (!isInvalidLine(line, response, currentLineNumber)) {
-                Part part = parsePartFromLine(line, existingParts);
+            if (!isInvalidLine(line, result, currentLineNumber)) {
+                Part part = parsePartFromLine(line, existingParts, result);
                 partsToSave.add(part);
             }
             currentLineNumber++;
@@ -149,9 +151,7 @@ public class ProductCsvService {
         }
 
         long chunkTotalTime = System.currentTimeMillis() - chunkStartTime;
-        log.debug("Chunk #{}: Processed {} lines, saved {} parts in {} ms", chunkNumber, lines.size(), partsToSave.size(), chunkTotalTime);
-
-        return partsToSave.size();
+        log.debug("Chunk #{}: Processed {} lines, saved/updated {} parts in {} ms", chunkNumber, lines.size(), partsToSave.size(), chunkTotalTime);
     }
 
     /**
@@ -160,10 +160,18 @@ public class ProductCsvService {
      *
      * @param line A single parsed row from the CSV representing a product part.
      * @param existingParts Existing parts to update
+     * @param result Upload result tracker
      * @return A fully populated {@link Part} entity ready to be saved.
      */
-    private Part parsePartFromLine(String[] line, Map<String, Part> existingParts) {
-        Part part = existingParts.getOrDefault(line[0], new Part());
+    private Part parsePartFromLine(String[] line, Map<String, Part> existingParts, CsvUploadResult result) {
+        Part part;
+        if (existingParts.containsKey(line[0])) {
+            part = existingParts.get(line[0]);
+            result.setUpdated(result.getUpdated() + 1);
+        } else {
+            part = new Part();
+            result.setSaved(result.getSaved() + 1);
+        }
         part.setArticle(line[0]);
         part.setName(line[1]);
         if (StringUtils.isNotBlank(line[2])) {
@@ -185,11 +193,11 @@ public class ProductCsvService {
      * the specific error is appended to the response map using the row's line number.
      *
      * @param line                  The CSV line to validate.
-     * @param response              The map-collecting validation errors.
+     * @param result                The upload result tracking skipped items.
      * @param lineNumber            The actual line number of the row in the CSV file.
      * @return {@code true} if the line violates any validation rule; {@code false} if it is valid.
      */
-    private boolean isInvalidLine(String[] line, Map<String, String> response, int lineNumber) {
+    private boolean isInvalidLine(String[] line, CsvUploadResult result, int lineNumber) {
         Optional<String> error = validateStructure(line)
                 .or(() -> validateRequiredFields(line))
                 .or(() -> validateFieldLengths(line))
@@ -198,7 +206,8 @@ public class ProductCsvService {
 
         if (error.isPresent()) {
             String errorMessage = error.get();
-            response.put("error_row_" + lineNumber, errorMessage);
+            result.setSkipped(result.getSkipped() + 1);
+            result.getSkippedDetails().add(new SkippedRow(lineNumber, errorMessage, String.join(";", line)));
             log.trace("Validation failed at line {}: {}", lineNumber, errorMessage);
             return true;
         }
@@ -222,8 +231,8 @@ public class ProductCsvService {
      * @return An {@link Optional} containing an error message if any required field is empty, or empty if valid.
      */
     private Optional<String> validateRequiredFields(String[] line) {
-        if (StringUtils.isAnyEmpty(line[0], line[1], line[6], line[7])) {
-            return Optional.of("Required fields are missing. Article, name, price, and brand must be provided.");
+        if (StringUtils.isAnyEmpty(line[0], line[6], line[7])) {
+            return Optional.of("Required fields are missing. Article, price, and brand must be provided.");
         }
         return Optional.empty();
     }
@@ -235,9 +244,15 @@ public class ProductCsvService {
      * @return An {@link Optional} containing an error message if any string is too long, or empty if valid.
      */
     private Optional<String> validateFieldLengths(String[] line) {
-        if (line[0].length() > 50) return Optional.of("Article exceeds 50 characters.");
-        if (line[1].length() > 255) return Optional.of("Name exceeds 255 characters.");
-        if (line[7].length() > 50) return Optional.of("Brand exceeds 50 characters.");
+        if (line[0].length() > 50) {
+            return Optional.of("Article exceeds 50 characters.");
+        }
+        if (line[1].length() > 255) {
+            return Optional.of("Name exceeds 255 characters.");
+        }
+        if (line[7].length() > 50) {
+            return Optional.of("Brand exceeds 50 characters.");
+        }
         return Optional.empty();
     }
 
