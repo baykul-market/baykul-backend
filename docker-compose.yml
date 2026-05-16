@@ -14,7 +14,7 @@ services:
     networks:
       - baykul_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,7 +23,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: baykul-backend:latest
+      args:
+        VERSION: ${APP_VERSION:-latest}
+    image: ${APP_NAME:-baykul-backend}:${APP_VERSION:-latest}
     container_name: baykul_app
     restart: always
     depends_on:

@@ -1,9 +1,11 @@
 # Single stage build - expects the JAR to be built in GitHub Actions
 FROM eclipse-temurin:21-jre-jammy
 
+ARG VERSION=latest
+
 LABEL maintainer="Baykul Team" \
-      version="1.0.0" \
-      description="Baykul Backend Application"
+    version=$VERSION \
+    description="Baykul Backend Application"
 
 RUN groupadd --system --gid 1000 spring && \
     useradd --system --uid 1000 --gid spring spring
@@ -20,7 +22,7 @@ USER spring:spring
 WORKDIR /app
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:8080/actuator/health || exit 1
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
 ENV SPRING_PROFILES_ACTIVE=prod \
     JAVA_OPTS="-Xms512m -Xmx1024m" \
     TZ=Europe/Moscow
