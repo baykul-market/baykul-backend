@@ -7,17 +7,23 @@ import by.baykulbackend.database.repository.user.IRefreshTokenRepository;
 import by.baykulbackend.database.repository.user.IUserRepository;
 import by.baykulbackend.exceptions.JwtAuthenticationException;
 import by.baykulbackend.security.JwtProvider;
+import by.baykulbackend.database.dto.security.ForgotPasswordRequest;
+import by.baykulbackend.database.dao.user.Localization;
 import by.baykulbackend.database.dto.security.JwtRequest;
 import by.baykulbackend.database.dto.security.JwtResponse;
+import by.baykulbackend.exceptions.NotFoundException;
+import by.baykulbackend.services.email.EmailService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.thymeleaf.context.Context;
 
 @Service
 @Slf4j
@@ -28,6 +34,7 @@ public class AuthService {
     private final IRefreshTokenRepository iRefreshTokenRepository;
     private final IUserRepository iUserRepository;
     private final RequestService requestService;
+    private final EmailService emailService;
 
     /**
      * Authenticates a user by login and password.
@@ -38,9 +45,9 @@ public class AuthService {
      * @param authRequest object containing user login and password
      * @return JwtResponse with access and refresh tokens
      * @throws JwtAuthenticationException if:
-     *         1. User not found
-     *         2. User is blocked
-     *         3. Invalid password
+     *                                    1. User not found
+     *                                    2. User is blocked
+     *                                    3. Invalid password
      */
     public JwtResponse login(String userAgent, @NonNull HttpServletRequest request, @NonNull JwtRequest authRequest) {
         final User user = iUserRepository.findByLogin(authRequest.getLogin())
@@ -57,8 +64,8 @@ public class AuthService {
             final String refreshToken = jwtProvider.generateRefreshToken(user);
             String clientIp = requestService.getClientIp(request);
 
-            RefreshToken existingRefToken =
-                    iRefreshTokenRepository.findRefreshTokenByUserAgentAndIpAddress(userAgent, clientIp);
+            RefreshToken existingRefToken = iRefreshTokenRepository.findRefreshTokenByUserAgentAndIpAddress(userAgent,
+                    clientIp);
 
             if (existingRefToken == null) {
                 RefreshToken refToken = new RefreshToken();
@@ -90,9 +97,9 @@ public class AuthService {
      * @return JwtResponse with new access token (refresh token is null in response)
      *         or empty JwtResponse if refresh token is invalid
      * @throws JwtAuthenticationException if:
-     *         1. Refresh token is invalid
-     *         2. User not found
-     *         3. Refresh token doesn't exist in database
+     *                                    1. Refresh token is invalid
+     *                                    2. User not found
+     *                                    3. Refresh token doesn't exist in database
      */
     public JwtResponse getAccessToken(@NonNull String refreshToken, @NonNull HttpServletRequest request) {
         if (jwtProvider.validateRefreshToken(refreshToken)) {
@@ -120,16 +127,17 @@ public class AuthService {
 
     /**
      * Rotates both access and refresh tokens.
-     * Generates new access and refresh tokens, replacing the old refresh token in database.
+     * Generates new access and refresh tokens, replacing the old refresh token in
+     * database.
      * Used for token rotation security practice.
      *
      * @param refreshToken current valid refresh token
      * @param request      HTTP request to extract client IP address
      * @return JwtResponse with new access and refresh tokens
      * @throws JwtAuthenticationException if:
-     *         1. Refresh token is invalid
-     *         2. User not found
-     *         3. Refresh token doesn't exist in database
+     *                                    1. Refresh token is invalid
+     *                                    2. User not found
+     *                                    3. Refresh token doesn't exist in database
      */
     public JwtResponse refresh(@NonNull String refreshToken, @NonNull HttpServletRequest request) {
         if (jwtProvider.validateRefreshToken(refreshToken)) {
@@ -156,12 +164,57 @@ public class AuthService {
     }
 
     /**
-     * Retrieves authentication information of the current user from SecurityContext.
+     * Retrieves authentication information of the current user from
+     * SecurityContext.
      *
      * @return JwtAuthentication object with user data (login, role, ID)
-     * @throws ClassCastException if security context contains non-JwtAuthentication object
+     * @throws ClassCastException if security context contains non-JwtAuthentication
+     *                            object
      */
     public JwtAuthentication getAuthInfo() {
         return (JwtAuthentication) SecurityContextHolder.getContext().getAuthentication();
+    }
+
+    /**
+     * Resets user password and sends it to their email.
+     * Accepts either login or email as identifier.
+     *
+     * @param request ForgotPasswordRequest containing user identifier
+     * @throws NotFoundException          if user not found
+     * @throws JwtAuthenticationException if user has no email registered
+     */
+    public void forgotPassword(@NonNull ForgotPasswordRequest request) {
+        String identifier = request.getIdentifier();
+        User user = iUserRepository.findByLogin(identifier)
+                .or(() -> iUserRepository.findByEmail(identifier))
+                .orElseThrow(() -> new NotFoundException("User with identifier " + identifier + " not found"));
+
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            log.warn("User {} requested password reset but has no email registered", user.getLogin());
+            throw new JwtAuthenticationException("User has no email registered", HttpStatus.BAD_REQUEST);
+        }
+
+        String newPassword = RandomStringUtils.secure().nextAlphanumeric(10);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        iUserRepository.save(user);
+
+        // Invalidate all sessions for this user
+        iRefreshTokenRepository.deleteByUser(user);
+        log.info("All sessions for user {} have been invalidated after password reset", user.getLogin());
+
+        // Send email
+        Context context = new Context();
+        context.setVariable("login", user.getLogin());
+        context.setVariable("newPassword", newPassword);
+
+        String subject = user.getLocalization() == Localization.RUS ? "Сброс пароля" : "Password Reset";
+        emailService.sendEmail(
+                user.getEmail(),
+                subject,
+                "password-reset",
+                user.getLocalization() != null ? user.getLocalization() : Localization.RUS,
+                context);
+
+        log.info("Password reset email sent to user {}", user.getLogin());
     }
 }

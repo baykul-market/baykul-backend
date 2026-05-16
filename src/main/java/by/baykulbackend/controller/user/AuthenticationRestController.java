@@ -4,6 +4,7 @@ import by.baykulbackend.services.user.AuthService;
 import by.baykulbackend.database.dto.security.JwtRequest;
 import by.baykulbackend.database.dto.security.JwtResponse;
 import by.baykulbackend.database.dto.security.RefreshJwtRequest;
+import by.baykulbackend.database.dto.security.ForgotPasswordRequest;
 import by.baykulbackend.services.user.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -353,5 +354,83 @@ public class AuthenticationRestController {
         refreshTokenService.deleteByName(refreshToken.getRefreshToken());
         SecurityContextLogoutHandler securityContextLogoutHandler = new SecurityContextLogoutHandler();
         securityContextLogoutHandler.logout(request, response, null);
+    }
+
+    @Operation(
+            summary = "Forgot password",
+            description = "Resets user password and sends a new one to the registered email. " +
+                    "Accepts either login or email address as identifier.",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "User identifier (login or email)",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = ForgotPasswordRequest.class),
+                            examples = @ExampleObject(
+                                    name = "Forgot password request example",
+                                    summary = "Forgot password request",
+                                    value = """
+                                            {
+                                              "identifier": "john_doe"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Password reset initiated. Email sent if user exists and has email.",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "Success response",
+                                    summary = "Request accepted",
+                                    value = """
+                                            {
+                                              "message": "If an account exists for this identifier, a new password has been sent to the registered email."
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Bad request - invalid input or user has no email registered",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "Bad request example",
+                                    summary = "Validation or registration error",
+                                    value = """
+                                            {
+                                              "error": "User has no email registered"
+                                            }
+                                            """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Not found - user with given identifier doesn't exist",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            examples = @ExampleObject(
+                                    name = "Not found example",
+                                    summary = "User not found",
+                                    value = """
+                                            {
+                                              "error": "User with identifier john_doe not found"
+                                            }
+                                            """
+                            )
+                    )
+            )
+    })
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest forgotPasswordRequest) {
+        authService.forgotPassword(forgotPasswordRequest);
+        return ResponseEntity.ok().body(java.util.Map.of("message", "If an account exists for this identifier, a new password has been sent to the registered email."));
     }
 }
