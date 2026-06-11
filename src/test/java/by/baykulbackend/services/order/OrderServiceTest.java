@@ -9,6 +9,8 @@ import by.baykulbackend.database.repository.order.IOrderRepository;
 import by.baykulbackend.exceptions.BadRequestException;
 import by.baykulbackend.security.JwtAuthentication;
 import by.baykulbackend.services.user.AuthService;
+import by.baykulbackend.services.email.OrderEmailService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +41,8 @@ class OrderServiceTest {
     private AuthService authService;
     @Mock
     private ApplicationEventPublisher eventPublisher;
+    @Mock
+    private OrderEmailService orderEmailService;
 
     @InjectMocks
     private OrderService orderService;
@@ -61,6 +65,7 @@ class OrderServiceTest {
         orderProduct.setId(orderProductId);
         orderProduct.setOrder(order);
         orderProduct.setStatus(BoxStatus.IN_WAREHOUSE);
+        orderProduct.setPaid(false);
 
         order.setOrderProducts(java.util.List.of(orderProduct));
 
@@ -80,7 +85,7 @@ class OrderServiceTest {
 
     @Test
     void transitionToShippedShouldSucceedIfOrderIsPaid() {
-        order.setPaid(true);
+        orderProduct.setPaid(true);
         when(authService.getAuthInfo()).thenReturn(authInfo);
         when(iOrderProductRepository.findById(orderProductId)).thenReturn(Optional.of(orderProduct));
 
@@ -96,7 +101,7 @@ class OrderServiceTest {
 
     @Test
     void transitionToDeliveredShouldSucceedIfOrderIsPaid() {
-        order.setPaid(true);
+        orderProduct.setPaid(true);
         orderProduct.setStatus(BoxStatus.SHIPPED);
         when(authService.getAuthInfo()).thenReturn(authInfo);
         when(iOrderProductRepository.findById(orderProductId)).thenReturn(Optional.of(orderProduct));
@@ -110,4 +115,46 @@ class OrderServiceTest {
         assertEquals(BoxStatus.DELIVERED, orderProduct.getStatus());
         verify(iOrderProductRepository).save(orderProduct);
     }
+
+    @Test
+    void updatePriceShouldThrowIfPaid() {
+        orderProduct.setPaid(true);
+        when(iOrderProductRepository.findById(orderProductId)).thenReturn(Optional.of(orderProduct));
+
+        OrderProduct patch = new OrderProduct();
+        patch.setPrice(java.math.BigDecimal.TEN);
+
+        assertThrows(BadRequestException.class, () -> orderService.updateOrderProduct(orderProductId, patch));
+    }
+
+    @Test
+    void updatePriceShouldThrowIfNegative() {
+        orderProduct.setPaid(false);
+        when(iOrderProductRepository.findById(orderProductId)).thenReturn(Optional.of(orderProduct));
+
+        OrderProduct patch = new OrderProduct();
+        patch.setPrice(new java.math.BigDecimal("-5.00"));
+
+        assertThrows(BadRequestException.class, () -> orderService.updateOrderProduct(orderProductId, patch));
+    }
+
+    @Test
+    void updatePriceShouldSucceedIfUnpaid() {
+        orderProduct.setPaid(false);
+        orderProduct.setPrice(java.math.BigDecimal.ONE);
+        orderProduct.setCurrency(by.baykulbackend.database.dao.finance.Currency.EUR);
+        when(authService.getAuthInfo()).thenReturn(authInfo);
+        when(iOrderProductRepository.findById(orderProductId)).thenReturn(Optional.of(orderProduct));
+
+        OrderProduct patch = new OrderProduct();
+        patch.setPrice(java.math.BigDecimal.TEN);
+
+        ResponseEntity<?> response = orderService.updateOrderProduct(orderProductId, patch);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(java.math.BigDecimal.TEN, orderProduct.getPrice());
+        verify(iOrderProductRepository).save(orderProduct);
+        verify(orderEmailService).sendBoxPriceChangedEmail(orderProduct, java.math.BigDecimal.ONE, java.math.BigDecimal.TEN);
+    }
+
 }

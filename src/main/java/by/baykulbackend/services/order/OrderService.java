@@ -248,12 +248,26 @@ public class OrderService {
             }
         }
 
+        if (orderProduct.getPrice() != null && !orderProduct.getPrice().equals(orderProductFromDb.getPrice())) {
+            if (orderProductFromDb.getPaid()) {
+                throw new BadRequestException("Cannot change box price of a paid order", "ORDER_PAID");
+            }
+            if (orderProduct.getPrice().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BadRequestException("Price cannot be negative", "ORDER_BOX_PRICE_INVALID");
+            }
+            BigDecimal oldPrice = orderProductFromDb.getPrice();
+            orderProductFromDb.setPrice(orderProduct.getPrice());
+            log.info("Order product's price with id {} has been updated from {} to {} -> {}",
+                    id, oldPrice, orderProduct.getPrice(), authService.getAuthInfo().getPrincipal());
+            orderEmailService.sendBoxPriceChangedEmail(orderProductFromDb, oldPrice, orderProduct.getPrice());
+        }
+
         if (orderProduct.getStatus() != null) {
             if (!isTransitionAllowed(orderProductFromDb.getStatus(), orderProduct.getStatus())) {
                 throw new BadRequestException("Order product's status transition not allowed", "TRANSITION_NOT_ALLOWED");
             }
 
-            if (orderProduct.getStatus().equals(BoxStatus.SHIPPED) && !orderProductFromDb.getOrder().getPaid()) {
+            if (orderProduct.getStatus().equals(BoxStatus.SHIPPED) && !orderProductFromDb.getPaid()) {
                 throw new BadRequestException("Order is not paid", "ORDER_NOT_PAID");
             }
 
@@ -289,6 +303,7 @@ public class OrderService {
 
         return ResponseEntity.ok(response);
     }
+
 
     /**
      * Completes an order that is ready for pickup.
@@ -566,17 +581,19 @@ public class OrderService {
         for (OrderProduct orderProduct : order.getOrderProducts()) {
             switch (order.getStatus()) {
                 case ORDERED:
-                    Integer requestedCount = orderProduct.getPartsCount();
-                    Integer storageCount = orderProduct.getPart().getStorageCount();
+                    if (orderProduct.getStatus() == BoxStatus.CREATED && (orderProduct.getPaid() || order.getUser().getCanPayLater())) {
+                        Integer requestedCount = orderProduct.getPartsCount();
+                        Integer storageCount = orderProduct.getPart().getStorageCount();
 
-                    if (storageCount == null || requestedCount > storageCount) {
-                        orderProduct.setStatus(BoxStatus.TO_ORDER);
-                    } else {
-                        orderProduct.setStatus(BoxStatus.IN_WAREHOUSE);
+                        if (storageCount == null || requestedCount > storageCount) {
+                            orderProduct.setStatus(BoxStatus.TO_ORDER);
+                        } else {
+                            orderProduct.setStatus(BoxStatus.IN_WAREHOUSE);
 
-                        Part part = orderProduct.getPart();
-                        part.setStorageCount(storageCount - requestedCount);
-                        iPartRepository.save(part);
+                            Part part = orderProduct.getPart();
+                            part.setStorageCount(storageCount - requestedCount);
+                            iPartRepository.save(part);
+                        }
                     }
                     break;
 
@@ -599,14 +616,15 @@ public class OrderService {
      *
      * @param order the order being paid for
      * @param amount the payment amount
+     * @param description the payment description
      */
-    private void processPayment(Order order, BigDecimal amount) {
+    private void processPayment(Order order, BigDecimal amount, String description) {
         BalanceOperationDto balanceOperation = new BalanceOperationDto();
         balanceOperation.setUserId(order.getUser().getId().toString());
         balanceOperation.setAmount(amount);
         balanceOperation.setCurrency(priceService.getSystemCurrency());
         balanceOperation.setOperationType(BalanceOperationType.PAYMENT);
-        balanceOperation.setDescription("Payment for order № " + order.getNumber());
+        balanceOperation.setDescription(description);
 
         balanceService.processBalance(balanceOperation);
     }
@@ -645,13 +663,17 @@ public class OrderService {
      * @throws BadRequestException if order is already paid
      */
     private ResponseEntity<?> payForOrder(Order order, Map<String, Object> response) {
-        if (order.getPaid()) {
+        List<OrderProduct> unpaidProducts = order.getOrderProducts().stream()
+                .filter(op -> !op.getPaid() && op.getStatus() != BoxStatus.CANCELLED)
+                .toList();
+
+        if (unpaidProducts.isEmpty()) {
             throw new BadRequestException("Order is already paid", "ORDER_ALREADY_PAID");
         }
 
         BigDecimal totalOrderPrice = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
-        for (OrderProduct orderProduct : order.getOrderProducts()) {
+        for (OrderProduct orderProduct : unpaidProducts) {
             totalOrderPrice = totalOrderPrice.add(
                     currencyExchangeService.exchange(
                             orderProduct.getPrice(), orderProduct.getCurrency(), priceService.getSystemCurrency()
@@ -659,7 +681,13 @@ public class OrderService {
             );
         }
 
-        processPayment(order, totalOrderPrice);
+        processPayment(order, totalOrderPrice, "Payment for order № " + order.getNumber());
+        
+        for (OrderProduct op : unpaidProducts) {
+            op.setPaid(true);
+        }
+        iOrderProductRepository.saveAll(unpaidProducts);
+
         order.setPaid(true);
         updateOrderStatusAfterConfirmation(order);
 
@@ -667,6 +695,83 @@ public class OrderService {
 
         return ResponseEntity.ok(response);
     }
+
+    @Transactional
+    public ResponseEntity<?> payForOrderProduct(UUID productId) {
+        Map<String, Object> response = new HashMap<>();
+
+        OrderProduct orderProduct = iOrderProductRepository.findById(productId)
+                .orElseThrow(() -> new NotFoundException("Order product not found"));
+
+        if (orderProduct.getPaid()) {
+            throw new BadRequestException("Order product is already paid", "ORDER_ALREADY_PAID");
+        }
+
+        Order order = orderProduct.getOrder();
+        BigDecimal boxPrice = currencyExchangeService.exchange(
+                orderProduct.getPrice(), orderProduct.getCurrency(), priceService.getSystemCurrency()
+        ).multiply(BigDecimal.valueOf(orderProduct.getPartsCount()));
+
+        processPayment(order, boxPrice, "Payment for box № " + (orderProduct.getNumber() != null ? orderProduct.getNumber() : "unset") + " in order № " + order.getNumber());
+        
+        orderProduct.setPaid(true);
+        iOrderProductRepository.save(orderProduct);
+
+        if (Set.of(OrderStatus.CONFIRMATION_WAITING, OrderStatus.PAYMENT_WAITING).contains(order.getStatus())) {
+            OrderStatus oldStatus = order.getStatus();
+            order.setStatus(OrderStatus.ORDERED);
+            
+            updateOrderProductsStatus(order);
+            updateOrderStatus(order);
+            
+            iOrderProductRepository.saveAll(order.getOrderProducts());
+            iOrderRepository.save(order);
+            
+            eventPublisher.publishEvent(new OrderStatusChangeEvent(order, oldStatus, OrderStatus.ORDERED));
+        } else {
+            if (orderProduct.getStatus() == BoxStatus.CREATED) {
+                Integer requestedCount = orderProduct.getPartsCount();
+                Integer storageCount = orderProduct.getPart().getStorageCount();
+
+                if (storageCount == null || requestedCount > storageCount) {
+                    orderProduct.setStatus(BoxStatus.TO_ORDER);
+                } else {
+                    orderProduct.setStatus(BoxStatus.IN_WAREHOUSE);
+
+                    Part part = orderProduct.getPart();
+                    part.setStorageCount(storageCount - requestedCount);
+                    iPartRepository.save(part);
+                }
+                iOrderProductRepository.save(orderProduct);
+            }
+            updateOrderStatus(order);
+            iOrderRepository.save(order);
+        }
+
+        boolean allPaid = order.getOrderProducts().stream()
+                .allMatch(op -> op.getPaid() || op.getStatus() == BoxStatus.CANCELLED);
+        if (allPaid) {
+            order.setPaid(true);
+            iOrderRepository.save(order);
+        }
+
+        response.put("pay_order_product", "true");
+        return ResponseEntity.ok(response);
+    }
+
+    @Transactional
+    public ResponseEntity<?> payForUsersOrderProduct(UUID productId) {
+        OrderProduct orderProduct = iOrderProductRepository.findById(productId)
+                .orElseThrow(() -> new NotFoundException("Order product not found"));
+
+        User user = getCurrentUser();
+        if (!orderProduct.getOrder().getUser().getId().equals(user.getId())) {
+            throw new BadRequestException("Order product does not belong to the current user");
+        }
+
+        return payForOrderProduct(productId);
+    }
+
 
     /**
      * Cancels an order.

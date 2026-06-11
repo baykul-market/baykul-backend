@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface IOrderProductRepository extends JpaRepository<OrderProduct, UUID> {
-    @Query("SELECT op FROM OrderProduct op JOIN op.order o WHERE o.user.id = :userId AND o.paid = false AND op.status NOT IN :excludedStatuses")
+    @Query("SELECT op FROM OrderProduct op JOIN op.order o WHERE o.user.id = :userId AND op.paid = false AND op.status NOT IN :excludedStatuses")
     List<OrderProduct> findAllUnpaidProductsByUserId(@Param("userId") UUID userId, @Param("excludedStatuses") Collection<BoxStatus> excludedStatuses);
 
     boolean existsByNumber(Long number);
