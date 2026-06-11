@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import by.baykulbackend.database.dao.finance.Currency;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -255,5 +256,24 @@ class UserServiceTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(((Map<?, ?>) response.getBody()).containsKey("error_email"));
         verify(iUserRepository, never()).save(any());
+    }
+
+    @Test
+    void createUserShouldDefaultCanPayLaterToTrueWhenNull() {
+        User user = new User();
+        user.setLogin("newuser");
+        user.setPassword("password123");
+        user.setEmail("new@test.com");
+        user.setCanPayLater(null);
+
+        when(passwordEncoderConfig.getPasswordEncoder()).thenReturn(passwordEncoder);
+        when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
+        when(priceService.getSystemCurrency()).thenReturn(Currency.RUB);
+
+        ResponseEntity<?> response = userService.createUser(user);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(user.getCanPayLater());
+        verify(iUserRepository).save(user);
     }
 }

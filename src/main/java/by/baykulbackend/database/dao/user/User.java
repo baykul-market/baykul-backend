@@ -141,7 +141,7 @@ public class User {
 
     @Schema(
             description = "Indicates user's payment permission",
-            defaultValue = "false",
+            defaultValue = "true",
             example = "true"
     )
     @Column(name = "can_pay_later", nullable = false)

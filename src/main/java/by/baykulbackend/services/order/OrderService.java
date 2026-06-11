@@ -253,7 +253,7 @@ public class OrderService {
                 throw new BadRequestException("Order product's status transition not allowed");
             }
 
-            if (orderProduct.getStatus().equals(BoxStatus.DELIVERED) && !orderProductFromDb.getOrder().getPaid()) {
+            if (orderProduct.getStatus().equals(BoxStatus.SHIPPED) && !orderProductFromDb.getOrder().getPaid()) {
                 throw new BadRequestException("Order is not paid");
             }
 

@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.6.0-default-can-pay-later-to-true
+      author: dzmitry.shushkevich@gmail.com
+      changes:
+        - addDefaultValue:
+            tableName: users
+            columnName: can_pay_later
+            defaultValueBoolean: true
+        - update:
+            tableName: users
+            columns:
+              - column:
+                  name: can_pay_later
+                  valueBoolean: true
+            where: can_pay_later IS NULL OR can_pay_later = false
