@@ -35,6 +35,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
+import by.baykulbackend.services.balance.BalanceService;
+
 @RestController
 @RequestMapping("/api/v1/users/profile")
 @RequiredArgsConstructor
@@ -45,6 +47,7 @@ public class ProfileRestController {
     private final UserService userService;
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
+    private final BalanceService balanceService;
 
     @Operation(
             summary = "Get user by authentication",
@@ -147,8 +150,12 @@ public class ProfileRestController {
     @JsonView(Views.UserFullView.class)
     @GetMapping
     public User getProfile() {
-        return iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
+        User user = iUserRepository.findByLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getBalance() != null) {
+            balanceService.enrichBalance(user.getBalance());
+        }
+        return user;
     }
 
     @Operation(
@@ -468,7 +475,8 @@ public class ProfileRestController {
     @PreAuthorize("hasAnyAuthority('my-balance:read')")
     @JsonView(Views.BalanceFullView.class)
     public Balance getProfileBalance() {
-        return iBalanceRepository.findByUserLogin(authService.getAuthInfo().getPrincipal().toString())
+        Balance balance = iBalanceRepository.findByUserLogin(authService.getAuthInfo().getPrincipal().toString())
                 .orElseThrow(() -> new NotFoundException("User balance not found"));
+        return balanceService.enrichBalance(balance);
     }
 }

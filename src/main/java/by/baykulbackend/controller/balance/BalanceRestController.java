@@ -123,7 +123,9 @@ public class BalanceRestController {
     public List<Balance> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iBalanceRepository.findAll(pageable).stream().toList();
+        List<Balance> balances = iBalanceRepository.findAll(pageable).stream().toList();
+        balances.forEach(balanceService::enrichBalance);
+        return balances;
     }
 
     @Operation(
@@ -232,7 +234,8 @@ public class BalanceRestController {
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
             @RequestParam UUID id) {
-        return iBalanceRepository.findById(id).orElseThrow(() -> new NotFoundException("Balance not found"));
+        Balance balance = iBalanceRepository.findById(id).orElseThrow(() -> new NotFoundException("Balance not found"));
+        return balanceService.enrichBalance(balance);
     }
 
     @Operation(
@@ -342,7 +345,8 @@ public class BalanceRestController {
                     example = "123e4567-e89b-12d3-a456-426614174000"
             )
             @RequestParam UUID userId) {
-        return iBalanceRepository.findByUserId(userId).orElseThrow(() -> new NotFoundException("User balance not found"));
+        Balance balance = iBalanceRepository.findByUserId(userId).orElseThrow(() -> new NotFoundException("User balance not found"));
+        return balanceService.enrichBalance(balance);
     }
 
     @Operation(

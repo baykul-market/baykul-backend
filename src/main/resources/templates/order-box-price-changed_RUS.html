@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Изменение цены позиции в заказе</title>
+</head>
+<body>
+<h2>Здравствуйте, <span th:text="${userName}">Пользователь</span>!</h2>
+<p>Цена позиции в вашем заказе №<span th:text="${orderNumber}">123456</span> была изменена менеджером.</p>
+
+<h3>Детали позиции:</h3>
+<p><strong>Товар:</strong> <span th:text="${partName}">Наименование</span> (<span th:text="${partArticle}">Артикул</span>)</p>
+<p><strong>Прежняя цена:</strong> <span th:text="${oldPrice}">0.00 ₽</span></p>
+<p><strong>Новая цена:</strong> <span th:text="${newPrice}">0.00 ₽</span></p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+    Перейти к заказу
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">
+    Это автоматическое сообщение, пожалуйста, не отвечайте на него.<br>
+    © Baykul Marketplace
+</p>
+</body>
+</html>

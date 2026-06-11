@@ -668,4 +668,23 @@ public class OrderRestController {
     ) {
         return orderService.cancelOrder(id);
     }
+
+    @Operation(
+            summary = "Pay for an order product (box)",
+            description = "Processes payment for a specific order product. Requires all-orders:write permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping("/product/pay")
+    @PreAuthorize("hasAnyAuthority('all-orders:write')")
+    public ResponseEntity<?> payProduct(
+            @Parameter(
+                    description = "UUID of the order product to pay for",
+                    required = true,
+                    example = "123e4567-e89b-12d3-a456-426614174001"
+            )
+            @RequestParam UUID id
+    ) {
+        return orderService.payForOrderProduct(id);
+    }
+
 }

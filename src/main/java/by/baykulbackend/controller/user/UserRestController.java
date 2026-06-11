@@ -39,6 +39,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import java.util.List;
 import java.util.UUID;
 
+import by.baykulbackend.services.balance.BalanceService;
+
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
@@ -46,6 +48,7 @@ import java.util.UUID;
 public class UserRestController {
     private final IUserRepository iUserRepository;
     private final UserService userService;
+    private final BalanceService balanceService;
 
     @Operation(
             summary = "Get all users",
@@ -146,7 +149,13 @@ public class UserRestController {
     public List<User> getAll(
             @PageableDefault(size = 50, sort = "createdTs", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        return iUserRepository.findAll(pageable).stream().toList();
+        List<User> users = iUserRepository.findAll(pageable).stream().toList();
+        for (User user : users) {
+            if (user.getBalance() != null) {
+                balanceService.enrichBalance(user.getBalance());
+            }
+        }
+        return users;
     }
 
     @Operation(
@@ -256,7 +265,11 @@ public class UserRestController {
                     example = "123e4567-e89b-12d3-a456-426614174001"
             )
             @RequestParam UUID id) {
-        return iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
+        User user = iUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getBalance() != null) {
+            balanceService.enrichBalance(user.getBalance());
+        }
+        return user;
     }
 
     @Operation(

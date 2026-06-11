@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.7.0-add-paid-to-order-products
+      author: antigravity
+      changes:
+        - addColumn:
+            tableName: order_products
+            columns:
+              - column:
+                  name: paid
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - sql:
+            dbms: postgresql,h2
+            sql: UPDATE order_products op SET paid = (SELECT paid FROM orders o WHERE o.id = op.order_id)
