@@ -8,14 +8,21 @@ import by.baykulbackend.exceptions.BadRequestException;
 import by.baykulbackend.exceptions.NotFoundException;
 import by.baykulbackend.services.finance.CurrencyExchangeService;
 import by.baykulbackend.services.user.AuthService;
+import by.baykulbackend.database.model.Role;
 import jakarta.transaction.Transactional;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import by.baykulbackend.database.repository.order.IOrderProductRepository;
+import by.baykulbackend.services.finance.PriceService;
+import by.baykulbackend.database.dao.order.BoxStatus;
+import by.baykulbackend.database.dao.order.OrderProduct;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -25,6 +32,8 @@ public class BalanceService {
     private final IBalanceRepository iBalanceRepository;
     private final AuthService authService;
     private final CurrencyExchangeService currencyExchangeService;
+    private final IOrderProductRepository iOrderProductRepository;
+    private final PriceService priceService;
 
     /**
      * Processes a balance operation.
@@ -88,9 +97,18 @@ public class BalanceService {
             case REPLENISHMENT -> {
                 newAccount = currentAccount.add(amountToProcess);
             }
-            case PAYMENT, WITHDRAWAL -> {
+            case PAYMENT -> {
                 if (currentAccount.compareTo(amountToProcess) < 0) {
-                    throw new BadRequestException("Insufficient funds");
+                    Role role = authService.getAuthInfo().getRole();
+                    if (role != Role.ADMIN && role != Role.MANAGER) {
+                        throw new BadRequestException("Insufficient funds", "INSUFFICIENT_FUNDS");
+                    }
+                }
+                newAccount = currentAccount.subtract(amountToProcess);
+            }
+            case WITHDRAWAL -> {
+                if (currentAccount.compareTo(amountToProcess) < 0) {
+                    throw new BadRequestException("Insufficient funds", "INSUFFICIENT_FUNDS");
                 }
                 newAccount = currentAccount.subtract(amountToProcess);
             }
@@ -118,5 +136,28 @@ public class BalanceService {
                 balanceOperation.getOperationType(), balanceOperation.getAmount(), balanceOperation.getCurrency(),
                 balanceOperation.getBalanceId(), balanceOperation.getUserId(),
                 authService.getAuthInfo().getPrincipal().toString());
+    }
+
+    public BigDecimal calculateUnpaidSpendingsSum(UUID userId) {
+        List<OrderProduct> unpaidProducts = iOrderProductRepository.findAllUnpaidProductsByUserId(
+                userId, List.of(BoxStatus.CANCELLED, BoxStatus.RETURNED)
+        );
+        BigDecimal totalSpendings = BigDecimal.ZERO;
+        for (OrderProduct op : unpaidProducts) {
+            BigDecimal convertedPrice = currencyExchangeService.exchange(
+                    op.getPrice(), op.getCurrency(), priceService.getSystemCurrency()
+            );
+            totalSpendings = totalSpendings.add(convertedPrice.multiply(BigDecimal.valueOf(op.getPartsCount())));
+        }
+        return totalSpendings.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public Balance enrichBalance(Balance balance) {
+        if (balance == null || balance.getUser() == null) {
+            return balance;
+        }
+        BigDecimal spendings = calculateUnpaidSpendingsSum(balance.getUser().getId());
+        balance.setProjectedAccount(balance.getAccount().subtract(spendings));
+        return balance;
     }
 }

@@ -146,6 +146,18 @@ public class OrderProduct {
     private Currency currency;
 
     @Schema(
+            description = "Is order product paid",
+            accessMode = Schema.AccessMode.READ_ONLY,
+            example = "true",
+            defaultValue = "false",
+            allowableValues = {"true", "false"}
+    )
+    @Column(name = "paid", nullable = false)
+    @JsonView(Views.OrderProductView.Get.class)
+    @Builder.Default
+    private Boolean paid = false;
+
+    @Schema(
             description = "Bill associated with this order product",
             example = "{\"id\": \"123e4567-e89b-12d3-a456-426614174001\"}",
             requiredMode = Schema.RequiredMode.NOT_REQUIRED

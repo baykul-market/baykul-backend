@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Order Item Price Changed</title>
+</head>
+<body>
+<h2>Hello, <span th:text="${userName}">User</span>!</h2>
+<p>The price of an item in your order #<span th:text="${orderNumber}">123456</span> has been changed by the manager.</p>
+
+<h3>Item details:</h3>
+<p><strong>Item:</strong> <span th:text="${partName}">Part Name</span> (<span th:text="${partArticle}">Article</span>)</p>
+<p><strong>Old price:</strong> <span th:text="${oldPrice}">0.00 EUR</span></p>
+<p><strong>New price:</strong> <span th:text="${newPrice}">0.00 EUR</span></p>
+
+<a th:href="${url}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+    View Order
+</a>
+
+<hr>
+<p style="color: #666; font-size: 12px;">© Baykul Marketplace</p>
+</body>
+</html>

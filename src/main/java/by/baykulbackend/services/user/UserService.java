@@ -77,7 +77,7 @@ public class UserService {
         }
 
         if (user.getCanPayLater() == null) {
-            user.setCanPayLater(false);
+            user.setCanPayLater(true);
         }
 
         if (user.getLocalization() == null) {

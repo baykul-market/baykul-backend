@@ -543,4 +543,23 @@ public class UserOrderRestController {
     ) {
         return orderService.cancelUsersOrder(id);
     }
+
+    @Operation(
+            summary = "Pay for user's own order product (box)",
+            description = "Processes payment for current user's specific order product. Requires my-orders:write permission.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping("/product/pay")
+    @PreAuthorize("hasAnyAuthority('my-orders:write')")
+    public ResponseEntity<?> payProduct(
+            @Parameter(
+                    description = "UUID of the order product to pay for",
+                    required = true,
+                    example = "123e4567-e89b-12d3-a456-426614174001"
+            )
+            @RequestParam UUID id
+    ) {
+        return orderService.payForUsersOrderProduct(id);
+    }
+
 }

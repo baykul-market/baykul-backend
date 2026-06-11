@@ -9,10 +9,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface IOrderProductRepository extends JpaRepository<OrderProduct, UUID> {
+    @Query("SELECT op FROM OrderProduct op JOIN op.order o WHERE o.user.id = :userId AND op.paid = false AND op.status NOT IN :excludedStatuses")
+    List<OrderProduct> findAllUnpaidProductsByUserId(@Param("userId") UUID userId, @Param("excludedStatuses") Collection<BoxStatus> excludedStatuses);
+
     boolean existsByNumber(Long number);
     Optional<OrderProduct> findByBillIsNullAndIdAndStatusIn(UUID id, Collection<BoxStatus> statuses);
 

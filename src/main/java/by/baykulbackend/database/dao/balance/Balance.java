@@ -20,6 +20,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Transient;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -88,6 +89,15 @@ public class Balance {
     @Column(name = "account", nullable = false)
     @JsonView({Views.BalanceView.Get.class})
     private BigDecimal account;
+
+    @Transient
+    @Schema(
+            description = "Balance account after subtracting unpaid active spendings",
+            accessMode = Schema.AccessMode.READ_ONLY,
+            example = "1000.50"
+    )
+    @JsonView({Views.BalanceView.Get.class})
+    private BigDecimal projectedAccount;
 
     @Schema(
             description = "Balance account currency",

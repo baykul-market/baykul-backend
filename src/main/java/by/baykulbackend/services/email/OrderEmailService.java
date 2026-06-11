@@ -1,6 +1,7 @@
 package by.baykulbackend.services.email;
 
 import by.baykulbackend.database.dao.order.Order;
+import by.baykulbackend.database.dao.order.OrderProduct;
 import by.baykulbackend.database.dao.order.OrderStatus;
 import by.baykulbackend.database.dao.user.Localization;
 import by.baykulbackend.database.dao.user.User;
@@ -104,6 +105,42 @@ public class OrderEmailService {
 
         sendStatusEmail(order, OrderStatus.CONFIRMATION_WAITING, user.getLocalization());
     }
+
+    public void sendBoxPriceChangedEmail(OrderProduct orderProduct, BigDecimal oldPrice, BigDecimal newPrice) {
+        User user = orderProduct.getOrder().getUser();
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            log.warn("User {} has no email, skipping price change notification", user.getId());
+            return;
+        }
+
+        Localization localization = user.getLocalization() != null ? user.getLocalization() : Localization.RUS;
+        String templateName = "order-box-price-changed";
+        String subjectTemplate = localization == Localization.RUS
+                ? "Изменение цены позиции в заказе №%d"
+                : "Price change for an item in order #%d";
+        String subject = String.format(subjectTemplate, orderProduct.getOrder().getNumber());
+
+        Context context = new Context();
+        context.setVariable("localization", localization.name());
+        context.setVariable("orderNumber", orderProduct.getOrder().getNumber());
+        context.setVariable("userName", Optional.ofNullable(user.getProfile()).map(by.baykulbackend.database.dao.user.Profile::getName).orElse(user.getLogin()));
+        context.setVariable("partName", orderProduct.getPart().getName());
+        context.setVariable("partArticle", orderProduct.getPart().getArticle());
+        context.setVariable("oldPrice", String.format("%.2f %s", oldPrice, orderProduct.getCurrency()));
+        context.setVariable("newPrice", String.format("%.2f %s", newPrice, orderProduct.getCurrency()));
+        context.setVariable("url", emailService.getBaseUrl() + ordersPath + "/" + orderProduct.getOrder().getId());
+
+        emailService.sendEmail(
+            user.getEmail(),
+            subject,
+            templateName,
+            localization,
+            context
+        );
+        log.info("Price change email sent: orderProductId={}, oldPrice={}, newPrice={}",
+            orderProduct.getId(), oldPrice, newPrice);
+    }
+
     
     private void sendStatusEmail(Order order, OrderStatus status, Localization localization) {
         String templateName = getTemplateNameForStatus(status);
