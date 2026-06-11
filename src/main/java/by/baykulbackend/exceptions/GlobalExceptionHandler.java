@@ -68,10 +68,13 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<Map<String, String>> handleBadCredentialsException(
+    public ResponseEntity<Map<String, Object>> handleBadCredentialsException(
             BadRequestException ex) {
-        Map<String, String> error = new HashMap<>();
+        Map<String, Object> error = new HashMap<>();
         error.put("error", ex.getMessage());
+        if (ex.getErrorCode() != null) {
+            error.put("code", ex.getErrorCode());
+        }
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 

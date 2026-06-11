@@ -107,7 +107,8 @@ class BalanceServiceTest {
         operation.setOperationType(BalanceOperationType.PAYMENT);
         operation.setDescription("Order Payment");
 
-        assertThrows(BadRequestException.class, () -> balanceService.processBalance(operation));
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> balanceService.processBalance(operation));
+        assertEquals("INSUFFICIENT_FUNDS", ex.getErrorCode());
     }
 
     @Test
@@ -123,7 +124,8 @@ class BalanceServiceTest {
         operation.setOperationType(BalanceOperationType.WITHDRAWAL);
         operation.setDescription("Manual Withdrawal");
 
-        assertThrows(BadRequestException.class, () -> balanceService.processBalance(operation));
+        BadRequestException ex = assertThrows(BadRequestException.class, () -> balanceService.processBalance(operation));
+        assertEquals("INSUFFICIENT_FUNDS", ex.getErrorCode());
     }
 
     @Test

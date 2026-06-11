@@ -101,14 +101,14 @@ public class BalanceService {
                 if (currentAccount.compareTo(amountToProcess) < 0) {
                     Role role = authService.getAuthInfo().getRole();
                     if (role != Role.ADMIN && role != Role.MANAGER) {
-                        throw new BadRequestException("Insufficient funds");
+                        throw new BadRequestException("Insufficient funds", "INSUFFICIENT_FUNDS");
                     }
                 }
                 newAccount = currentAccount.subtract(amountToProcess);
             }
             case WITHDRAWAL -> {
                 if (currentAccount.compareTo(amountToProcess) < 0) {
-                    throw new BadRequestException("Insufficient funds");
+                    throw new BadRequestException("Insufficient funds", "INSUFFICIENT_FUNDS");
                 }
                 newAccount = currentAccount.subtract(amountToProcess);
             }

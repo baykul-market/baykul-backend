@@ -239,22 +239,22 @@ public class OrderService {
 
         if (orderProduct.getNumber() != null) {
             if (orderProduct.getNumber() < START_ORDER_NUMBER) {
-                throw new BadRequestException("Order product number must be greater or equal 100 000");
+                throw new BadRequestException("Order product number must be greater or equal 100 000", "ORDER_BOX_NUMBER_INVALID");
             }
 
             if (!orderProduct.getNumber().equals(orderProductFromDb.getNumber())
                     && iOrderProductRepository.existsByNumber(orderProduct.getNumber())) {
-                throw new BadRequestException("Order product with that number already exists");
+                throw new BadRequestException("Order product with that number already exists", "ORDER_BOX_NUMBER_EXISTS");
             }
         }
 
         if (orderProduct.getStatus() != null) {
             if (!isTransitionAllowed(orderProductFromDb.getStatus(), orderProduct.getStatus())) {
-                throw new BadRequestException("Order product's status transition not allowed");
+                throw new BadRequestException("Order product's status transition not allowed", "TRANSITION_NOT_ALLOWED");
             }
 
             if (orderProduct.getStatus().equals(BoxStatus.SHIPPED) && !orderProductFromDb.getOrder().getPaid()) {
-                throw new BadRequestException("Order is not paid");
+                throw new BadRequestException("Order is not paid", "ORDER_NOT_PAID");
             }
 
             orderProductFromDb.setStatus(orderProduct.getStatus());
@@ -314,11 +314,11 @@ public class OrderService {
                 .orElseThrow(() -> new NotFoundException("Order not found"));
 
         if (!order.getStatus().equals(OrderStatus.READY_FOR_PICKUP)) {
-            throw new BadRequestException("Completing order is not allowed: it is not ready");
+            throw new BadRequestException("Completing order is not allowed: it is not ready", "ORDER_COMPLETING_NOT_READY");
         }
 
         if (!order.getPaid()) {
-            throw new BadRequestException("Completing order is not allowed: it is not paid");
+            throw new BadRequestException("Completing order is not allowed: it is not paid", "ORDER_COMPLETING_NOT_PAID");
         }
 
         order.setStatus(OrderStatus.COMPLETED);
@@ -646,7 +646,7 @@ public class OrderService {
      */
     private ResponseEntity<?> payForOrder(Order order, Map<String, Object> response) {
         if (order.getPaid()) {
-            throw new BadRequestException("Order is already paid");
+            throw new BadRequestException("Order is already paid", "ORDER_ALREADY_PAID");
         }
 
         BigDecimal totalOrderPrice = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
