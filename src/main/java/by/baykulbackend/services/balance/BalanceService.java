@@ -8,6 +8,7 @@ import by.baykulbackend.exceptions.BadRequestException;
 import by.baykulbackend.exceptions.NotFoundException;
 import by.baykulbackend.services.finance.CurrencyExchangeService;
 import by.baykulbackend.services.user.AuthService;
+import by.baykulbackend.database.model.Role;
 import jakarta.transaction.Transactional;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -97,6 +98,12 @@ public class BalanceService {
                 newAccount = currentAccount.add(amountToProcess);
             }
             case PAYMENT -> {
+                if (currentAccount.compareTo(amountToProcess) < 0) {
+                    Role role = authService.getAuthInfo().getRole();
+                    if (role != Role.ADMIN && role != Role.MANAGER) {
+                        throw new BadRequestException("Insufficient funds");
+                    }
+                }
                 newAccount = currentAccount.subtract(amountToProcess);
             }
             case WITHDRAWAL -> {

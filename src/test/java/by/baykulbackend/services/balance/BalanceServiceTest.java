@@ -15,6 +15,7 @@ import by.baykulbackend.security.JwtAuthentication;
 import by.baykulbackend.services.finance.CurrencyExchangeService;
 import by.baykulbackend.services.finance.PriceService;
 import by.baykulbackend.services.user.AuthService;
+import by.baykulbackend.database.model.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -74,6 +75,7 @@ class BalanceServiceTest {
 
     @Test
     void processPaymentShouldAllowNegativeBalance() {
+        authInfo.setRole(Role.ADMIN);
         when(authService.getAuthInfo()).thenReturn(authInfo);
         when(iBalanceRepository.findByUserIdWithLock(user.getId())).thenReturn(Optional.of(balance));
         when(currencyExchangeService.exchange(any(), any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -89,6 +91,23 @@ class BalanceServiceTest {
 
         assertEquals(new BigDecimal("-50.00"), balance.getAccount());
         verify(iBalanceRepository).save(balance);
+    }
+
+    @Test
+    void processPaymentShouldThrowExceptionForRegularUserIfInsufficientFunds() {
+        authInfo.setRole(Role.USER);
+        when(authService.getAuthInfo()).thenReturn(authInfo);
+        when(iBalanceRepository.findByUserIdWithLock(user.getId())).thenReturn(Optional.of(balance));
+        when(currencyExchangeService.exchange(any(), any(), any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BalanceOperationDto operation = new BalanceOperationDto();
+        operation.setUserId(user.getId().toString());
+        operation.setAmount(new BigDecimal("150.00"));
+        operation.setCurrency(Currency.RUB);
+        operation.setOperationType(BalanceOperationType.PAYMENT);
+        operation.setDescription("Order Payment");
+
+        assertThrows(BadRequestException.class, () -> balanceService.processBalance(operation));
     }
 
     @Test
