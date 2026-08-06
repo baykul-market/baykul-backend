@@ -23,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.thymeleaf.context.Context;
 
 @Service
@@ -183,6 +184,7 @@ public class AuthService {
      * @throws NotFoundException          if user not found
      * @throws JwtAuthenticationException if user has no email registered
      */
+    @Transactional
     public void forgotPassword(@NonNull ForgotPasswordRequest request) {
         String identifier = request.getIdentifier();
         User user = iUserRepository.findByLogin(identifier)
