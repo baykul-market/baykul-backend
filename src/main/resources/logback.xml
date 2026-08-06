@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <property name="LOG_PATH" value="${LOG_PATH:-/app/logs}" />
-    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+    <!-- Filter out Tomcat, Spring Security filters, and reflection boilerplate from stack traces -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n%rEx{full, org.apache.catalina, org.apache.coyote, org.apache.tomcat, org.springframework.security, org.springframework.web.filter, java.base/java.lang.reflect, java.base/java.lang.Thread}" />
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

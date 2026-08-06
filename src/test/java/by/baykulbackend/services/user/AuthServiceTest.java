@@ -102,4 +102,32 @@ public class AuthServiceTest {
         verify(userRepository, never()).save(any());
         verify(emailService, never()).sendEmail(any(), any(), any(), any(), any());
     }
+
+    @Test
+    void forgotPasswordSuccessWithRussianLocalization() {
+        testUser.setLocalization(Localization.RUS);
+        ForgotPasswordRequest request = new ForgotPasswordRequest("testuser");
+        when(userRepository.findByLogin("testuser")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+
+        authService.forgotPassword(request);
+
+        verify(userRepository).save(testUser);
+        verify(refreshTokenRepository).deleteByUser(testUser);
+        verify(emailService).sendEmail(eq("test@example.com"), eq("Сброс пароля"), eq("password-reset"), eq(Localization.RUS), any(Context.class));
+    }
+
+    @Test
+    void forgotPasswordSuccessWithNullLocalization() {
+        testUser.setLocalization(null);
+        ForgotPasswordRequest request = new ForgotPasswordRequest("testuser");
+        when(userRepository.findByLogin("testuser")).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+
+        authService.forgotPassword(request);
+
+        verify(userRepository).save(testUser);
+        verify(refreshTokenRepository).deleteByUser(testUser);
+        verify(emailService).sendEmail(eq("test@example.com"), eq("Password Reset"), eq("password-reset"), eq(Localization.RUS), any(Context.class));
+    }
 }
