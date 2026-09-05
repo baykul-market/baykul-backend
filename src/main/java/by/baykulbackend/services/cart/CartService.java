@@ -31,6 +31,7 @@ public class CartService {
     private final ICartProductRepository iCartProductRepository;
     private final IUserRepository iUserRepository;
     private final IPartRepository iPartRepository;
+    private final by.baykulbackend.services.product.PartCatalogGuard catalogGuard;
     private final AuthService authService;
     private final PriceService priceService;
 
@@ -69,6 +70,7 @@ public class CartService {
         Part part = iPartRepository.findById(partId)
                 .orElseThrow(() -> new NotFoundException("Part not found"));
 
+        catalogGuard.requireAvailable(java.util.List.of(part));
         return addPartToCart(cart, part);
     }
 
@@ -86,6 +88,7 @@ public class CartService {
         Part partFromDB = iPartRepository.findById(partId)
                 .orElseThrow(() -> new NotFoundException("Part not found"));
 
+        catalogGuard.requireAvailable(java.util.List.of(partFromDB));
         return addPartToCart(cart, partFromDB);
     }
 

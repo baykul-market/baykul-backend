@@ -15,6 +15,3 @@ databaseChangeLog:
       file: classpath:db/changelog/v1.6.0/db.changelog-v1.6.0.yaml
   - include:
       file: classpath:db/changelog/v1.7.0/db.changelog-v1.7.0.yaml
-  - include:
-      file: classpath:db/changelog/v1.8.0/db.changelog-v1.8.0.yaml
-

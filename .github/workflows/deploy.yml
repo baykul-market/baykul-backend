@@ -163,13 +163,18 @@ jobs:
               -v /root/baykul-backend-prod/uploads:/app/uploads \
               "$IMAGE"
 
-            # Brief warm-up window then verify
-            sleep 8
-            if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-              echo "✅ Container ${CONTAINER_NAME} is running"
-            else
-              echo "❌ Container failed to start — dumping logs"
-              docker logs "$CONTAINER_NAME" --tail 50
+            # Liquibase must finish and the database health indicator must be UP.
+            READY=false
+            for attempt in $(seq 1 120); do
+              if docker exec "$CONTAINER_NAME" curl -fsS http://localhost:8080/manage/health | grep -q '"status":"UP"'; then
+                READY=true
+                break
+              fi
+              sleep 5
+            done
+            if [ "$READY" != true ]; then
+              echo "Backend did not become healthy within 10 minutes"
+              docker logs "$CONTAINER_NAME" --tail 100
               exit 1
             fi
 

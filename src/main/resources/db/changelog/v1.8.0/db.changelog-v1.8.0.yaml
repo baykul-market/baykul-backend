@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1.8.0-part-sources
+      author: codex
+      changes:
+        - sqlFile:
+            path: classpath:db/changelog/v1.8.0/part-sources.sql
+            splitStatements: true

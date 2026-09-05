@@ -40,3 +40,6 @@ app:
     address:
       rus: "Тестовый адрес"
       eng: "Test Address"
+
+# PostgreSQL import lifecycle is exercised by integrationTest.
+app.imports.maintenance-enabled: false
