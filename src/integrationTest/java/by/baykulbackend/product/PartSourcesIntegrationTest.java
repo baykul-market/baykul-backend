@@ -327,6 +327,77 @@ class PartSourcesIntegrationTest {
     }
 
     @Test
+    void managerAndAdminCanManageSourcesButUserCannotWriteOrReadReports() throws Exception {
+        UUID source = sources.create("Permissions").id();
+        var job = upload(source, "A;Valid;;1;;0;1;BMW\nbad\n");
+        mvc.perform(post("/api/v1/product/sources").with(as(Role.USER)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Denied\"}")).andExpect(status().isForbidden());
+        mvc.perform(multipart("/api/v1/product/sources/" + source + "/imports").file(file("A;Valid;;1;;0;1;BMW\n"))
+                .with(as(Role.USER))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/product/sources/" + source + "/imports/" + job.id() + "/errors").with(as(Role.USER)))
+                .andExpect(status().isForbidden());
+        for (Role role : List.of(Role.MANAGER, Role.ADMIN)) {
+            mvc.perform(post("/api/v1/product/sources").with(as(role)).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"name\":\"Allowed\"}")).andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("HIDDEN"));
+            mvc.perform(patch("/api/v1/product/sources/" + source).with(as(role)).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"name\":\"Renamed\"}")).andExpect(status().isOk());
+            mvc.perform(get("/api/v1/product/sources/" + source + "/imports/" + job.id() + "/errors").with(as(role)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].rowNumber").value(3));
+        }
+    }
+
+    @Test
+    void manualCreationUsesItsOwnSourceAndUuidEditingKeepsImportedOffersSeparate() throws Exception {
+        apply(PartSource.LEGACY_ID, "A;Imported;;1;;0;1;BMW\n");
+        jdbc.update("UPDATE users SET role = 'MANAGER' WHERE id = ?", USER_ID);
+        mvc.perform(post("/api/v1/product").with(as(Role.MANAGER)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"article\":\"A\",\"brand\":\"BMW\",\"name\":\"Manual\",\"price\":5}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").exists());
+        UUID manual = partId(PartSource.MANUAL_ID, "A", "BMW");
+        mvc.perform(patch("/api/v1/product").param("id", manual.toString()).with(as(Role.MANAGER)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"price\":8}")).andExpect(status().isOk());
+        assertEquals(new BigDecimal("8.00"), price(manual));
+        assertEquals(new BigDecimal("1.00"), price(partId(PartSource.LEGACY_ID, "A", "BMW")));
+        mvc.perform(get("/api/v1/product/id").param("id", manual.toString()).with(as(Role.MANAGER)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.sourceId").value(PartSource.MANUAL_ID.toString()));
+        sources.archive(PartSource.MANUAL_ID);
+        mvc.perform(post("/api/v1/product").with(as(Role.MANAGER)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"article\":\"B\",\"brand\":\"BMW\",\"name\":\"Manual\"}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SOURCE_ARCHIVED"));
+    }
+
+    @Test
+    void parallelUploadsReserveOneJobAndRepeatedAcceptanceQueuesPublicationOnce() throws Exception {
+        UUID source = sources.create("Parallel uploads").id();
+        doNothing().when(executor).execute(any(Runnable.class));
+        CountDownLatch start = new CountDownLatch(1);
+        java.util.function.Supplier<String> uploadTogether = () -> {
+            try {
+                assertTrue(start.await(10, TimeUnit.SECONDS));
+                return upload(source, "A;Valid;;1;;0;1;BMW\n").status();
+            } catch (CatalogConflictException ex) {
+                return ex.getCode();
+            } catch (InterruptedException ex) {
+                throw new RuntimeException(ex);
+            }
+        };
+        var first = CompletableFuture.supplyAsync(uploadTogether);
+        var second = CompletableFuture.supplyAsync(uploadTogether);
+        start.countDown();
+        assertEquals(java.util.Set.of("QUEUED", "IMPORT_PENDING"), java.util.Set.of(first.get(10, TimeUnit.SECONDS), second.get(10, TimeUnit.SECONDS)));
+        UUID job = store.latest(source).id();
+        imports.process(job);
+        List<Runnable> publication = new ArrayList<>();
+        doAnswer(call -> { publication.add(call.getArgument(0)); return null; }).when(executor).execute(any(Runnable.class));
+        assertEquals("APPLYING", imports.apply(source, job, false).status());
+        assertEquals("APPLYING", imports.apply(source, job, false).status());
+        assertEquals(1, publication.size());
+        publication.getFirst().run();
+        sources.archive(source);
+        assertEquals("COMPLETED", imports.apply(source, job, false).status());
+    }
+
+    @Test
     @org.junit.jupiter.api.condition.EnabledIfSystemProperty(named = "largeImportTest", matches = "true")
     void largeFileUsesRealHttpAndKeepsCurrentCatalogUntilPublication() throws Exception {
         UUID source = sources.create("Large HTTP import").id();
