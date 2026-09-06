@@ -166,7 +166,7 @@ jobs:
             # Liquibase must finish and the database health indicator must be UP.
             READY=false
             for attempt in $(seq 1 120); do
-              if docker exec "$CONTAINER_NAME" curl -fsS http://localhost:8080/manage/health | grep -q '"status":"UP"'; then
+              if docker exec "$CONTAINER_NAME" curl -fsS http://localhost:8080/actuator/health | grep -q '"status":"UP"'; then
                 READY=true
                 break
               fi
