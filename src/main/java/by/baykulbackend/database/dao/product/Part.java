@@ -14,6 +14,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.UniqueConstraint;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -25,12 +30,27 @@ import java.util.UUID;
 
 @Data
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @JsonIdentityInfo(
         generator = ObjectIdGenerators.PropertyGenerator.class,
         property = "id")
-@Table(name = "parts")
+@Table(name = "parts", uniqueConstraints = @UniqueConstraint(columnNames = {"source_id", "article", "brand"}))
 @Schema(description = "Spare part entity representing products with their description data")
 public class Part {
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "source_id", nullable = false, updatable = false)
+    @JsonIgnore
+    private PartSource source;
+
+    @Column(name = "catalog_present", nullable = false)
+    @JsonIgnore
+    private boolean catalogPresent = true;
+
+    @JsonView(Views.PartView.Get.class)
+    public boolean isAvailable() {
+        return catalogPresent && source != null && source.getStatus() == PartSource.Status.ACTIVE;
+    }
+
     @Schema(
             description = "Unique identifier",
             accessMode = Schema.AccessMode.READ_ONLY,
@@ -63,12 +83,12 @@ public class Part {
     private LocalDateTime updatedTs;
 
     @Schema(
-            description = "Part's unique article",
+            description = "Part article; unique together with source and brand",
             requiredMode = Schema.RequiredMode.REQUIRED,
             maxLength = 50,
             example = "2405947"
     )
-    @Column(name = "article", unique = true, nullable = false, length = 50)
+    @Column(name = "article", nullable = false, length = 50)
     @JsonView({Views.PartView.Get.class, Views.PartView.Post.class, Views.PartView.Patch.class})
     private String article;
 

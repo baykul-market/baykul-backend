@@ -4,6 +4,7 @@ import by.baykulbackend.database.dao.product.Part;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,9 +13,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-public interface IPartRepository extends JpaRepository<Part, UUID> {
-    Optional<Part> findByArticle(String article);
-    boolean existsByArticle(String article);
+public interface IPartRepository extends JpaRepository<Part, UUID>, JpaSpecificationExecutor<Part> {
+    Optional<Part> findBySourceIdAndArticleAndBrand(UUID sourceId, String article, String brand);
 
     Set<Part> findAllByArticleIn(Set<String> articles);
 

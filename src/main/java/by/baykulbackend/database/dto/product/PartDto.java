@@ -17,6 +17,15 @@ import java.util.UUID;
 @Builder
 @Schema(description = "Part data transfer object")
 public class PartDto {
+    @JsonView(Views.PartView.Get.class)
+    private boolean available;
+
+    @JsonView(Views.PartView.Get.class)
+    private UUID sourceId;
+
+    @JsonView(Views.PartView.Get.class)
+    private String sourceName;
+
 
     @Schema(description = "Unique identifier", example = "123e4567-e89b-12d3-a456-426614174000")
     @JsonView(Views.PartView.Get.class)

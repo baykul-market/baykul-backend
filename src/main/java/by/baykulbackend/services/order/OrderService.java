@@ -55,6 +55,7 @@ public class OrderService {
     private final ICartProductRepository iCartProductRepository;
     private final IUserRepository iUserRepository;
     private final IPartRepository iPartRepository;
+    private final by.baykulbackend.services.product.PartCatalogGuard catalogGuard;
     private final AuthService authService;
     private final BalanceService balanceService;
 
@@ -122,6 +123,7 @@ public class OrderService {
             throw new BadRequestException("Cart is empty");
         }
 
+        catalogGuard.requireAvailable(cart.getCartProducts().stream().map(cp -> cp.getPart()).toList());
         Order order = buildAndSaveOrder(user);
         saveOrderProducts(order, cart);
 

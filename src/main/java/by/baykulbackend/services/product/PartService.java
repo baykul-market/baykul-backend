@@ -2,6 +2,9 @@ package by.baykulbackend.services.product;
 
 import by.baykulbackend.database.dao.finance.Currency;
 import by.baykulbackend.database.dao.product.Part;
+import by.baykulbackend.database.dao.product.PartSource;
+import by.baykulbackend.exceptions.CatalogConflictException;
+import org.springframework.transaction.annotation.Transactional;
 import by.baykulbackend.database.dao.user.User;
 import by.baykulbackend.database.dto.product.PartByArticlesRequestDto;
 import by.baykulbackend.database.dto.product.PartByArticlesResponseDto;
@@ -16,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,20 +28,19 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.ArrayList;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class PartService {
+    private final PartCatalogGuard catalogGuard;
     private final IPartRepository iPartRepository;
     private final IUserRepository iUserRepository;
     private final AuthService authService;
@@ -51,6 +52,7 @@ public class PartService {
      * @param part the Part object to create
      * @return ResponseEntity with success/error message
      */
+    @Transactional
     public ResponseEntity<?> createPart(Part part) {
         Map<String, String> response = new HashMap<>();
 
@@ -58,6 +60,7 @@ public class PartService {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
+        part.setSource(catalogGuard.writableSource(PartSource.MANUAL_ID));
         if (hasNotUniqueData(part, response)) {
             return new ResponseEntity<>(response, HttpStatus.CONFLICT);
         }
@@ -80,6 +83,7 @@ public class PartService {
 
         iPartRepository.save(part);
         response.put("create_part", "true");
+        response.put("id", part.getId().toString());
         log.info("Part {} has ben created. -> {}", part.getArticle(), authService.getAuthInfo().getPrincipal());
 
         return ResponseEntity.ok(response);
@@ -92,7 +96,7 @@ public class PartService {
      * @return Page of PartDto
      */
     public Page<PartDto> getAllParts(Pageable pageable) {
-        Page<Part> partPage = iPartRepository.findAll(pageable);
+        Page<Part> partPage = iPartRepository.findAll(PartQueries.available(), pageable);
         return partPage.map(this::convertToDto);
     }
 
@@ -105,6 +109,9 @@ public class PartService {
      */
     public PartDto getPartById(UUID id) {
         Part part = iPartRepository.findById(id).orElseThrow(() -> new NotFoundException("Part not found"));
+        if (!part.isAvailable() && !canManage()) {
+            throw new NotFoundException("Part not found");
+        }
         return convertToDto(part);
     }
 
@@ -112,30 +119,35 @@ public class PartService {
      * Get part by exact article
      */
     public PartDto getPartByArticle(String article) {
-        Part part = iPartRepository.findByArticle(article)
-                .orElseThrow(() -> new NotFoundException("Part not found"));
-        return convertToDto(part);
+        List<Part> parts = iPartRepository.findAll(PartQueries.available().and(PartQueries.exact("article", article)));
+        if (parts.isEmpty()) {
+            throw new NotFoundException("Part not found");
+        }
+        if (parts.size() > 1) {
+            throw new CatalogConflictException("AMBIGUOUS_PART", "Multiple offers match this article; select a part by UUID");
+        }
+        return convertToDto(parts.getFirst());
     }
 
     /**
      * Get parts by exact name with pagination
      */
     public Page<PartDto> getPartsByExactName(String name, Pageable pageable) {
-        return iPartRepository.findByName(name, pageable).map(this::convertToDto);
+        return iPartRepository.findAll(PartQueries.available().and(PartQueries.exact("name", name)), pageable).map(this::convertToDto);
     }
 
     /**
      * Get parts by exact brand with pagination
      */
     public Page<PartDto> getPartsByExactBrand(String brand, Pageable pageable) {
-        return iPartRepository.findByBrand(brand, pageable).map(this::convertToDto);
+        return iPartRepository.findAll(PartQueries.available().and(PartQueries.exact("brand", brand)), pageable).map(this::convertToDto);
     }
 
     /**
      * Searches for parts by article containing text.
      */
     public Page<PartDto> searchPartsByArticle(String article, Pageable pageable) {
-        return iPartRepository.findByArticleContainingIgnoreCase(article, pageable)
+        return iPartRepository.findAll(PartQueries.available().and(PartQueries.contains("article", article)), pageable)
                 .map(this::convertToDto);
     }
 
@@ -143,7 +155,7 @@ public class PartService {
      * Searches for parts by name containing text.
      */
     public Page<PartDto> searchPartsByName(String name, Pageable pageable) {
-        return iPartRepository.findByNameContainingIgnoreCase(name, pageable)
+        return iPartRepository.findAll(PartQueries.available().and(PartQueries.contains("name", name)), pageable)
                 .map(this::convertToDto);
     }
 
@@ -151,7 +163,7 @@ public class PartService {
      * Searches for parts by brand containing text.
      */
     public Page<PartDto> searchPartsByBrand(String brand, Pageable pageable) {
-        return iPartRepository.findByBrandContainingIgnoreCase(brand, pageable)
+        return iPartRepository.findAll(PartQueries.available().and(PartQueries.contains("brand", brand)), pageable)
                 .map(this::convertToDto);
     }
 
@@ -165,6 +177,7 @@ public class PartService {
      * @throws NotFoundException if no part is found with the given ID
      */
     @SuppressWarnings("BigDecimalMethodWithoutRoundingCalled")
+    @Transactional
     public ResponseEntity<?> updatePart(UUID id, Part part) {
         Map<String, String> response = new HashMap<>();
         Part partFromDB = iPartRepository.findById(id).orElseThrow(() -> new NotFoundException("Part not found"));
@@ -173,8 +186,13 @@ public class PartService {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
-        if (hasNotUniqueData(part, response)) {
-            return new ResponseEntity<>(response, HttpStatus.CONFLICT);
+        catalogGuard.refreshForEdit(partFromDB);
+        String nextArticle = StringUtils.isNotBlank(part.getArticle()) ? part.getArticle() : partFromDB.getArticle();
+        String nextBrand = StringUtils.isNotBlank(part.getBrand()) ? part.getBrand() : partFromDB.getBrand();
+        Optional<Part> conflict = iPartRepository.findBySourceIdAndArticleAndBrand(
+                partFromDB.getSource().getId(), nextArticle, nextBrand);
+        if (conflict.isPresent() && !conflict.get().getId().equals(id)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error_article", "Article and brand already exist in this source"));
         }
 
         if (StringUtils.isNotBlank(part.getArticle())) {
@@ -244,11 +262,14 @@ public class PartService {
      * @return ResponseEntity with success/error message
      * @throws NotFoundException if no part is found with the given ID
      */
+    @Transactional
     public ResponseEntity<?> deletePartById(UUID id) {
         Map<String, String> response = new HashMap<>();
         Part partFromDB = iPartRepository.findById(id).orElseThrow(() -> new NotFoundException("Part not found"));
 
-        iPartRepository.deleteById(id);
+        catalogGuard.refreshForEdit(partFromDB);
+        partFromDB.setCatalogPresent(false);
+        iPartRepository.save(partFromDB);
         response.put("delete_part", "true");
         log.info("Delete part with id = {} -> {}", id, authService.getAuthInfo().getPrincipal());
 
@@ -265,35 +286,8 @@ public class PartService {
      * @return Page of matching PartDto objects
      */
     public Page<PartDto> searchPart(String text, Pageable pageable) {
-        List<Part> content;
-
-        if (text == null || text.isEmpty()) {
-            content = iPartRepository.findAll(pageable).getContent();
-        } else {
-            Page<Part> articleResults = iPartRepository.findByArticleContainingIgnoreCase(text, Pageable.unpaged());
-            Page<Part> nameResults = iPartRepository.findByNameContainingIgnoreCase(text, Pageable.unpaged());
-
-            Set<Part> combined = new LinkedHashSet<>();
-            combined.addAll(articleResults.getContent());
-            combined.addAll(nameResults.getContent());
-
-            content = new ArrayList<>(combined);
-        }
-
-        int start = (int) pageable.getOffset();
-        int end = Math.min((start + pageable.getPageSize()), content.size());
-
-        if (start > content.size()) {
-            return new PageImpl<>(new ArrayList<>(), pageable, content.size());
-        }
-
-        User user = getCurrentUser();
-        List<Part> pageContent = content.subList(start, end);
-        List<PartDto> dtoContent = pageContent.stream()
-                .map(part -> convertToDto(part, user))
-                .toList();
-
-        return new PageImpl<>(dtoContent, pageable, content.size());
+        return iPartRepository.findAll(PartQueries.available().and(PartQueries.text(text)), pageable)
+                .map(this::convertToDto);
     }
 
     /**
@@ -306,37 +300,10 @@ public class PartService {
      * @return Page of matching PartDto objects
      */
     public Page<PartDto> searchPartsByFilter(String article, String name, String brand, Pageable pageable) {
-        boolean hasArticle = StringUtils.isNotBlank(article);
-        boolean hasName = StringUtils.isNotBlank(name);
-        boolean hasBrand = StringUtils.isNotBlank(brand);
-
-        Page<Part> partPage;
-
-        if (!hasArticle && !hasName && !hasBrand) {
-            partPage = iPartRepository.findAll(pageable);
-        } else if (hasArticle && hasName && hasBrand) {
-            partPage = iPartRepository.findByBrandContainingIgnoreCaseAndNameContainingIgnoreCaseAndArticleContainingIgnoreCase(
-                    brand, name, article, pageable
-            );
-        } else if (hasArticle && hasName) {
-            partPage = iPartRepository.findByArticleContainingIgnoreCaseAndNameContainingIgnoreCase(
-                    article, name, pageable
-            );
-        } else if (hasArticle && hasBrand) {
-            partPage = iPartRepository.findByBrandContainingIgnoreCaseAndArticleContainingIgnoreCase(
-                    brand, article, pageable
-            );
-        } else if (hasName && hasBrand) {
-            partPage = iPartRepository.findByBrandContainingIgnoreCaseAndNameContainingIgnoreCase(brand, name, pageable);
-        } else if (hasArticle) {
-            partPage = iPartRepository.findByArticleContainingIgnoreCase(article, pageable);
-        } else if (hasName) {
-            partPage = iPartRepository.findByNameContainingIgnoreCase(name, pageable);
-        } else {
-            partPage = iPartRepository.findByBrandContainingIgnoreCase(brand, pageable);
-        }
-
-        return partPage.map(this::convertToDto);
+        return iPartRepository.findAll(PartQueries.available()
+                .and(PartQueries.contains("article", article))
+                .and(PartQueries.contains("name", name))
+                .and(PartQueries.contains("brand", brand)), pageable).map(this::convertToDto);
     }
 
     public PartByArticlesResponseDto getPartsByArticles(PartByArticlesRequestDto request) {
@@ -350,16 +317,13 @@ public class PartService {
         Set<String> uniqueArticles = new HashSet<>(inputArticles);
         User user = getCurrentUser();
 
-        // Fetch found parts and map them by article for quick lookup
-        Map<String, PartDto> partMap = iPartRepository.findAllByArticleIn(uniqueArticles).stream()
+        Map<String, List<PartDto>> partMap = iPartRepository.findAll(PartQueries.available()
+                        .and((root, query, cb) -> root.get("article").in(uniqueArticles))).stream()
+                .sorted(java.util.Comparator.comparing(Part::getBrand).thenComparing(Part::getId))
                 .map(part -> convertToDto(part, user))
-                .collect(Collectors.toMap(PartDto::getArticle, p -> p, (p1, p2) -> p1));
-
-        // Reconstruct the list based on input order, preserving duplicates if they were in the input
+                .collect(Collectors.groupingBy(PartDto::getArticle));
         List<PartDto> orderedParts = inputArticles.stream()
-                .map(partMap::get)
-                .filter(Objects::nonNull)
-                .toList();
+                .flatMap(article -> partMap.getOrDefault(article, List.of()).stream()).toList();
 
         return PartByArticlesResponseDto.builder()
                 .parts(orderedParts)
@@ -391,6 +355,7 @@ public class PartService {
 
         PartDto partDto = PartDto.builder()
                 .id(part.getId())
+                .available(part.isAvailable())
                 .createdTs(part.getCreatedTs())
                 .updatedTs(part.getUpdatedTs())
                 .article(part.getArticle())
@@ -405,6 +370,8 @@ public class PartService {
                 .build();
 
         if (user.getRole().getPermissions().contains(Permission.PRODUCT_WRITE)) {
+            partDto.setSourceId(part.getSource() == null ? null : part.getSource().getId());
+            partDto.setSourceName(part.getSource() == null ? null : part.getSource().getName());
             partDto.setRealPrice(part.getPrice());
             partDto.setRealCurrency(part.getCurrency());
         }
@@ -473,7 +440,7 @@ public class PartService {
             return true;
         }
 
-        if (part.getMinCount() < 1) {
+        if (part.getMinCount() != null && part.getMinCount() < 1) {
             response.put("error_min_count", "The minimum count must be greater than 0");
             log.warn("The minimum count must be greater than 1");
             return true;
@@ -485,25 +452,25 @@ public class PartService {
             return true;
         }
 
-        if (part.getReturnPart().compareTo(BigDecimal.ZERO) < 0) {
+        if (part.getReturnPart() != null && part.getReturnPart().compareTo(BigDecimal.ZERO) < 0) {
             response.put("error_return_part", "The return part must be greater than 0");
             log.warn("The return part must be greater than 0");
             return true;
         }
 
-        if (part.getReturnPart().scale() > 2) {
+        if (part.getReturnPart() != null && part.getReturnPart().scale() > 2) {
             response.put("error_return_part", "The return part scale must be less than 2");
             log.warn("The return part scale must be less than 2");
             return true;
         }
 
-        if (part.getPrice().compareTo(BigDecimal.ZERO) < 0) {
+        if (part.getPrice() != null && part.getPrice().compareTo(BigDecimal.ZERO) < 0) {
             response.put("error_price", "The price must be greater than 0");
             log.warn("The price must be greater than 0");
             return true;
         }
 
-        if (part.getPrice().scale() > 2) {
+        if (part.getPrice() != null && part.getPrice().scale() > 2) {
             response.put("error_price", "The price scale must be less than 2");
             log.warn("The price scale must be less than 2");
             return true;
@@ -521,16 +488,25 @@ public class PartService {
      */
     private boolean hasNotUniqueData(Part part, Map<String, String> response) {
         if (StringUtils.isNotBlank(part.getArticle())) {
-            Optional<Part> partFoundByArticleOptional = iPartRepository.findByArticle(part.getArticle());
+            Optional<Part> partFoundByArticleOptional = iPartRepository.findBySourceIdAndArticleAndBrand(part.getSource().getId(), part.getArticle(), part.getBrand());
 
             if (partFoundByArticleOptional.isPresent() && !partFoundByArticleOptional.get().getId()
                     .equals(part.getId())) {
-                response.put("error_article", "Part with that article already exists");
-                log.warn("Part with that article already exists");
+                response.put("error_article", "Article and brand already exist in this source");
+                log.warn("Article and brand already exist in this source");
                 return true;
             }
         }
 
         return false;
+    }
+
+    private boolean canManage() {
+        return getCurrentUser().getRole().getPermissions().contains(Permission.PRODUCT_WRITE);
+    }
+
+    public Page<PartDto> getSourceParts(UUID sourceId, String text, Pageable pageable) {
+        return iPartRepository.findAll(PartQueries.source(sourceId).and(PartQueries.text(text)), pageable)
+                .map(this::convertToDto);
     }
 }

@@ -81,7 +81,7 @@ class PartServiceTest {
         Part partA = createPart(artA, "Name A");
         Part partB = createPart(artB, "Name B");
 
-        when(iPartRepository.findAllByArticleIn(anySet())).thenReturn(Set.of(partA, partB));
+        when(iPartRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class))).thenReturn(List.of(partA, partB));
         when(priceService.calculateProductPrice(any(), anyBoolean(), any())).thenReturn(BigDecimal.TEN);
 
         PartByArticlesRequestDto request = PartByArticlesRequestDto.builder()
@@ -109,7 +109,7 @@ class PartServiceTest {
 
         Part partA = createPart(artA, "Name A");
 
-        when(iPartRepository.findAllByArticleIn(anySet())).thenReturn(Set.of(partA));
+        when(iPartRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class))).thenReturn(List.of(partA));
         when(priceService.calculateProductPrice(any(), anyBoolean(), any())).thenReturn(BigDecimal.TEN);
 
         PartByArticlesRequestDto request = PartByArticlesRequestDto.builder()
@@ -135,7 +135,7 @@ class PartServiceTest {
 
         Part partA = createPart(artA, "Name A");
 
-        when(iPartRepository.findAllByArticleIn(anySet())).thenReturn(Set.of(partA));
+        when(iPartRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class))).thenReturn(List.of(partA));
         when(priceService.calculateProductPrice(any(), anyBoolean(), any())).thenReturn(BigDecimal.TEN);
 
         PartByArticlesRequestDto request = PartByArticlesRequestDto.builder()
