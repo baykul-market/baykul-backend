@@ -13,6 +13,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CsvUploadResult {
+    private java.util.UUID importId;
+    private java.util.UUID sourceId;
+    private boolean skippedDetailsTruncated;
     private int saved;
     private int updated;
     private int skipped;
