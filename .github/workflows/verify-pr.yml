@@ -48,7 +48,17 @@ jobs:
       - name: Build and test
         run: |
           chmod +x gradlew
-          ./gradlew build check --no-daemon
+          ./gradlew build check -DlargeImportTest=true --no-daemon
+
+      - name: Upload verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-reports
+          path: |
+            build/reports/tests/
+            build/test-results/
+          retention-days: 14
 
       - name: Write summary
         if: always()

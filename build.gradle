@@ -65,3 +65,34 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
 }
+
+sourceSets {
+    integrationTest {
+        resources.srcDir 'src/test/resources'
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+configurations {
+    integrationTestImplementation.extendsFrom testImplementation
+    integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
+}
+
+dependencies {
+    integrationTestImplementation 'org.testcontainers:junit-jupiter:1.21.4'
+    integrationTestImplementation 'org.testcontainers:postgresql:1.21.4'
+}
+
+tasks.register('integrationTest', Test) {
+    description = 'Verify migrations, import publication and API behavior against PostgreSQL 17'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    useJUnitPlatform()
+    shouldRunAfter test
+    maxHeapSize = '512m'
+    systemProperty 'largeImportTest', System.getProperty('largeImportTest', 'false')
+}
+
+tasks.named('check') { dependsOn integrationTest }
